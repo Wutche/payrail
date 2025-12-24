@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
 
 export async function signUp(formData: {
   email: string
@@ -17,7 +18,7 @@ export async function signUp(formData: {
       data: {
         role: formData.role
       },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`
+      emailRedirectTo: `${(await headers()).get('origin')}/auth/callback`
     }
   })
 
