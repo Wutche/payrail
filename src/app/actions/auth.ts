@@ -8,6 +8,11 @@ export async function signUp(formData: {
   email: string
   password: string
   role: 'business' | 'freelancer'
+  full_name?: string
+  organization_name?: string
+  country?: string
+  default_currency?: string
+  organization_type?: string
 }) {
   const supabase = await createClient()
 
@@ -16,7 +21,8 @@ export async function signUp(formData: {
     password: formData.password,
     options: {
       data: {
-        role: formData.role
+        role: formData.role,
+        full_name: formData.full_name
       },
       emailRedirectTo: `${(await headers()).get('origin')}/auth/callback`
     }
@@ -24,6 +30,30 @@ export async function signUp(formData: {
 
   if (authError) {
     return { error: authError.message }
+  }
+
+  if (user) {
+    // Insert into profiles table
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert([
+        {
+          id: user.id,
+          role: formData.role,
+          full_name: formData.full_name,
+          organization_name: formData.organization_name,
+          country: formData.country,
+          default_currency: formData.default_currency,
+          organization_type: formData.organization_type,
+          updated_at: new Date().toISOString(),
+        }
+      ])
+    
+    if (profileError) {
+      console.error('Error creating profile:', profileError)
+      // We don't necessarily want to fail the whole signup if profile creation fails,
+      // but we should log it. In a production app, we might want more robust handling.
+    }
   }
 
   return { success: true }
@@ -84,5 +114,54 @@ export async function deleteAccount() {
     return { success: true }
   } catch (err: any) {
     return { error: err.message || "An unexpected error occurred during deletion." }
+  }
+}
+
+export async function updateProfile(formData: {
+  full_name?: string
+  organization?: string
+  country?: string
+  default_currency?: string
+  organization_type?: string
+}) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: "Not authenticated" }
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({
+      data: {
+        full_name: formData.full_name,
+        organization: formData.organization,
+      }
+    })
+
+    if (authError) {
+      return { error: authError.message }
+    }
+
+    // Also update the profiles table
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        full_name: formData.full_name,
+        organization_name: formData.organization,
+        country: formData.country,
+        default_currency: formData.default_currency,
+        organization_type: formData.organization_type,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id)
+
+    if (profileError) {
+      return { error: profileError.message }
+    }
+
+    return { success: true }
+  } catch (err: any) {
+    return { error: err.message || "An unexpected error occurred during update." }
   }
 }
