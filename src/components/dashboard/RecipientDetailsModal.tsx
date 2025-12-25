@@ -53,7 +53,7 @@ export function RecipientDetailsModal({ isOpen, onClose, recipient }: RecipientD
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Recipient Tracking"
+      title="Recipient History"
       description={`Detailed record for ${recipient.name}`}
     >
       <div className="space-y-6">
