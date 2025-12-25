@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation"
 
 const calculateNextRun = (lastPayout: string | null, frequency: string) => {
   const now = new Date()
-  if (!lastPayout) return { date: now, isDue: true }
+  if (!lastPayout) return { date: now, isDue: true, alreadyPaid: false, isInitial: true }
 
   const last = new Date(lastPayout)
   const next = new Date(last)
@@ -26,10 +26,15 @@ const calculateNextRun = (lastPayout: string | null, frequency: string) => {
     default: next.setMonth(last.getMonth() + 1)
   }
 
+  // Use a slight buffer to avoid immediate "Due" status after refresh
+  const bufferTime = 1000 * 60; // 1 minute
+  const isDue = now.getTime() >= (next.getTime() - bufferTime)
+
   return { 
     date: next, 
-    isDue: now >= next,
-    alreadyPaid: now < next 
+    isDue,
+    alreadyPaid: !isDue,
+    isInitial: false
   }
 }
 
@@ -56,7 +61,7 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
   const currentPrice = currency === 'STX' ? stxPrice : btcPrice
   
   const schedules = initialRecipients.map(r => {
-    const { date, isDue, alreadyPaid } = calculateNextRun(r.last_payout_at, r.payment_frequency)
+    const { date, isDue, alreadyPaid, isInitial } = calculateNextRun(r.last_payout_at, r.payment_frequency)
     return {
       id: r.id,
       recipient: r.name,
@@ -64,7 +69,7 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
       btc_address: r.btc_address,
       amount: parseFloat(r.rate) || 0,
       frequency: r.payment_frequency.charAt(0).toUpperCase() + r.payment_frequency.slice(1),
-      nextRun: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      nextRun: isInitial ? "Initial Payment Due" : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       status: isDue ? "Ready" : "Scheduled",
       alreadyPaid
     }
@@ -78,27 +83,30 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
 
     try {
       setIsSubmitting(item.id)
+      
+      const onSuccess = async () => {
+        await recordPayout(item.id)
+        showNotification('success', 'Payout Recorded', `Database updated for ${item.recipient}`)
+        router.refresh()
+      }
+
       if (currency === 'STX') {
         const amountInStx = stxPrice > 0 ? (item.amount / stxPrice) : 0
         if (amountInStx > 0) {
-            await executePayroll(item.address, amountInStx)
+            await executePayroll(item.address, amountInStx, onSuccess)
         }
       } else {
         const btcAddress = item.btc_address
         if (!btcAddress) {
             showNotification('error', 'Missing BTC Address', `No Bitcoin address found for ${item.recipient}`)
+            setIsSubmitting(null)
             return
         }
         const amountInBtc = btcPrice > 0 ? (item.amount / btcPrice) : 0
         if (amountInBtc > 0) {
-            await transferBTC(btcAddress, amountInBtc)
+            await transferBTC(btcAddress, amountInBtc, onSuccess)
         }
       }
-
-      // Record successful payout in database
-      await recordPayout(item.id)
-      showNotification('success', 'Payout Recorded', `Database updated for ${item.recipient}`)
-      router.refresh()
     } catch (err: any) {
       // Handled by useStacks
     } finally {

@@ -109,7 +109,7 @@ export function useStacks() {
     })
   }, [network, showNotification])
 
-  const executePayroll = useCallback(async (recipient: string, amount: number) => {
+  const executePayroll = useCallback(async (recipient: string, amount: number, onFinish?: () => void) => {
     // amount is in STX, need uSTX (10^6)
     const amountUSTX = Math.floor(amount * 1_000_000)
     
@@ -124,6 +124,7 @@ export function useStacks() {
       onFinish: (data: any) => {
         console.log('Execute payroll finished:', data)
         showNotification('success', 'Payroll payment broadcasted!')
+        if (onFinish) onFinish()
       },
       onCancel: () => {
         console.log('Execute payroll cancelled')
@@ -132,7 +133,7 @@ export function useStacks() {
     })
   }, [network, showNotification])
 
-  const transferSTX = useCallback(async (recipient: string, amount: number) => {
+  const transferSTX = useCallback(async (recipient: string, amount: number, onFinish?: () => void) => {
     // amount is in STX, need uSTX (10^6)
     const amountUSTX = Math.floor(amount * 1_000_000)
 
@@ -144,6 +145,7 @@ export function useStacks() {
       onFinish: (data: any) => {
         console.log('Transfer STX finished:', data)
         showNotification('success', 'STX transfer broadcasted!')
+        if (onFinish) onFinish()
       },
       onCancel: () => {
         console.log('Transfer STX cancelled')
@@ -152,7 +154,7 @@ export function useStacks() {
     })
   }, [network, showNotification])
 
-  const transferBTC = useCallback(async (recipient: string, amount: number) => {
+  const transferBTC = useCallback(async (recipient: string, amount: number, onFinish?: () => void) => {
     // amount is in BTC, need Satoshis (10^8)
     const amountSats = Math.floor(amount * 100_000_000)
 
@@ -163,6 +165,7 @@ export function useStacks() {
       onFinish: (data: any) => {
         console.log('Transfer BTC finished:', data)
         showNotification('success', 'Bitcoin transfer broadcasted!')
+        if (onFinish) onFinish()
       },
       onCancel: () => {
         console.log('Transfer BTC cancelled')
