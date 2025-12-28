@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  ExternalLink
+  ExternalLink,
+  UserCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -56,7 +57,7 @@ export function Sidebar() {
 
   const settingsLinks: SidebarItem[] = [
     { name: 'Wallet', href: '/dashboard/wallet', icon: Wallet },
-    { name: 'Profile', href: '/dashboard/profile', icon: Settings },
+    { name: 'Profile', href: '/dashboard/profile', icon: UserCircle },
   ]
 
   const links = role === 'business' ? businessLinks : freelancerLinks
@@ -119,19 +120,37 @@ export function Sidebar() {
           <p className={cn("text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-4 px-2", isCollapsed && "hidden")}>
             Settings
           </p>
-          {settingsLinks.map((item) => (
-            <Link key={item.name} href={item.href}>
-              <div className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-xl transition-all group",
-                pathname === item.href 
-                  ? "bg-primary/10 text-primary" 
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              )}>
-                <item.icon className={cn("h-5 w-5 shrink-0", pathname === item.href ? "text-primary" : "group-hover:text-foreground")} />
-                {!isCollapsed && <span className="text-sm font-medium">{item.name}</span>}
-              </div>
-            </Link>
-          ))}
+          {settingsLinks.map((item) => {
+            const isActive = pathname === item.href
+            const isProfile = item.name === 'Profile'
+            
+            return (
+              <Link key={item.name} href={item.href}>
+                <div className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-xl transition-all group",
+                  isActive 
+                    ? "bg-primary/10 text-primary" 
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}>
+                  {isProfile ? (
+                    <div className={cn(
+                      "h-5 w-5 rounded-full border-2 transition-transform duration-300 overflow-hidden bg-accent shrink-0",
+                      isActive ? "border-primary scale-110" : "border-transparent group-hover:border-foreground/20"
+                    )}>
+                      <img 
+                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${role === 'business' ? 'Felix' : 'Scooter'}&backgroundColor=b6e3f4,c0aede,d1d4f9`} 
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <item.icon className={cn("h-5 w-5 shrink-0", isActive ? "text-primary" : "group-hover:text-foreground")} />
+                  )}
+                  {!isCollapsed && <span className="text-sm font-medium">{item.name}</span>}
+                </div>
+              </Link>
+            )
+          })}
         </div>
 
         {/* Sign Out */}
