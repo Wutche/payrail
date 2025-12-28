@@ -8,6 +8,12 @@ const appConfig = typeof window !== 'undefined' ? new AppConfig(['store_write', 
 export const userSession = typeof window !== 'undefined' ? new UserSession({ appConfig: appConfig! }) : null as unknown as UserSession
 
 export function StacksProvider({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = React.useState(false)
+  
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const authOptions = {
     appDetails: {
       name: 'Payrail',
@@ -20,7 +26,7 @@ export function StacksProvider({ children }: { children: React.ReactNode }) {
     theme: 'dark' as any,
   }
 
-  if (!userSession) return <>{children}</>
+  if (!mounted || !userSession) return <>{children}</>
 
   return (
     <Connect authOptions={authOptions as any}>

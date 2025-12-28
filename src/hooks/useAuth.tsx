@@ -29,6 +29,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
+    if (!supabase) {
+      console.warn("Auth: Supabase client not initialized. Check your environment variables.")
+      setLoading(false)
+      return
+    }
+
     const fetchProfileWithRetry = async (userId: string, retries = 3): Promise<UserRole | null> => {
       for (let i = 0; i < retries; i++) {
         try {
@@ -75,7 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     fetchUser()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: string, session: any) => {
         console.log("useAuth: Event:", event, "User:", session?.user?.id)
         const currentUser = session?.user ?? null
         setUser(currentUser)
