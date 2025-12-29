@@ -133,10 +133,11 @@ export function HistoryClient({ initialTransactions = [] }: { initialTransaction
               columns={[
                 {
                   header: "Tx ID",
-                  accessorKey: (tx: EnrichedTransaction) => <span className="font-mono text-xs text-muted-foreground">{truncateAddress(tx.txId)}</span>
+                  accessorKey: (tx: EnrichedTransaction) => <span className="font-mono text-[10px] md:text-xs text-muted-foreground">{truncateAddress(tx.txId)}</span>
                 },
                 {
                   header: "Organization",
+                  className: "hidden md:table-cell",
                   accessorKey: (tx: EnrichedTransaction) => (
                     <div className="flex flex-col">
                         <span className="font-semibold">{tx.senderName}</span>
@@ -148,8 +149,8 @@ export function HistoryClient({ initialTransactions = [] }: { initialTransaction
                   header: "Recipient",
                   accessorKey: (tx: EnrichedTransaction) => (
                     <div className="flex flex-col">
-                        <span className="font-semibold">{tx.recipientName}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono">{truncateAddress(tx.recipientAddress)}</span>
+                        <span className="font-semibold text-[10px] md:text-sm truncate max-w-[80px] md:max-w-none">{tx.recipientName}</span>
+                        <span className="hidden md:inline text-[10px] text-muted-foreground font-mono">{truncateAddress(tx.recipientAddress)}</span>
                     </div>
                   )
                 },
@@ -157,7 +158,7 @@ export function HistoryClient({ initialTransactions = [] }: { initialTransaction
                   header: "Status",
                   accessorKey: (tx: EnrichedTransaction) => (
                     <span className={cn(
-                      "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                      "px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[8px] md:text-[10px] font-bold uppercase tracking-wider",
                       tx.rawStatus === 'success' ? "bg-green-100 text-green-700 dark:bg-green-950/30" :
                       tx.rawStatus === 'pending' ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/30" :
                       "bg-red-100 text-red-700 dark:bg-red-950/30"
@@ -169,33 +170,36 @@ export function HistoryClient({ initialTransactions = [] }: { initialTransaction
                 {
                   header: "Amount",
                   accessorKey: (tx: EnrichedTransaction) => (
-                    <span className={cn(
-                      "font-mono font-bold",
-                      tx.senderAddress === address ? "" : "text-green-600"
-                    )}>
-                      {tx.senderAddress === address ? '-' : '+'}{tx.amount}
+                    <div className="flex flex-col items-end md:items-start">
+                      <span className={cn(
+                        "font-mono font-bold text-[10px] md:text-sm",
+                        tx.senderAddress === address ? "" : "text-green-600"
+                      )}>
+                        {tx.senderAddress === address ? '-' : '+'}{tx.amount}
+                      </span>
                       {tx.amountUSD && (
-                        <span className="block text-[10px] text-muted-foreground font-medium">
+                        <span className="block text-[8px] md:text-[10px] text-muted-foreground font-medium">
                           ≈ {tx.amountUSD}
                         </span>
                       )}
-                    </span>
+                    </div>
                   )
                 },
                 {
                   header: "Date",
+                  className: "hidden lg:table-cell",
                   accessorKey: "date"
                 },
                 {
                   header: "",
                   className: "text-right",
                   accessorKey: (tx: EnrichedTransaction) => (
-                    <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(tx.explorerLink, '_blank')}>
-                            <ExternalLink className="h-4 w-4" />
+                    <div className="flex justify-end gap-1 md:gap-2">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 md:h-8 md:w-8 hidden sm:inline-flex" onClick={() => window.open(tx.explorerLink, '_blank')}>
+                            <ExternalLink className="h-3.5 w-3.5 md:h-4 md:w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => setSelectedTx(tx)}>
-                            <Eye className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 md:h-8 md:w-8 text-primary" onClick={() => setSelectedTx(tx)}>
+                            <Eye className="h-3.5 w-3.5 md:h-4 md:w-4" />
                         </Button>
                     </div>
                   )

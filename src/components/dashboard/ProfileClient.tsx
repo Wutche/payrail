@@ -11,6 +11,9 @@ import { deleteAccount, updateProfile } from "@/app/actions/auth"
 import { Modal } from "@/components/dashboard/ActionModals"
 import { useNotification } from "@/components/NotificationProvider"
 import { useRouter } from "next/navigation"
+import { logout } from "@/app/actions/auth"
+import { useAuth } from "@/hooks/useAuth"
+import { LogOut } from "lucide-react"
 
 export function ProfileClient({ 
   initialUser, 
@@ -21,6 +24,7 @@ export function ProfileClient({
 }) {
   const { showNotification } = useNotification()
   const router = useRouter()
+  const { signOut } = useAuth()
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [showConfirmDelete, setShowConfirmDelete] = React.useState(false)
   const [isUpdating, setIsUpdating] = React.useState(false)
@@ -44,6 +48,12 @@ export function ProfileClient({
     } finally {
       setIsUpdating(false)
     }
+  }
+
+  const handleSignOut = async () => {
+    await logout()
+    await signOut()
+    router.push('/login')
   }
 
   const handleDeleteAccount = async () => {
@@ -112,11 +122,12 @@ export function ProfileClient({
                     <Input 
                       id="org" 
                       placeholder="Acme Corp" 
-                      className="pl-10 rounded-xl"
+                      className="pl-10 rounded-xl bg-accent/30"
                       value={formData.organization}
-                      onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                      disabled
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">Organization name can be changed in the Organization settings.</p>
                 </div>
               )}
               <div className="pt-2">
@@ -138,40 +149,7 @@ export function ProfileClient({
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-sm">
-            <CardHeader>
-              <CardTitle>Notifications</CardTitle>
-              <CardDescription>Configure how you receive payroll alerts.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               {[
-                 { title: "Email Notifications", desc: "Receive email alerts when payments are sent or received.", icon: Mail, checked: true },
-                 { title: "Transfer Updates", desc: "Get real-time status updates for blockchain transactions.", icon: Bell, checked: true },
-                 { title: "Security Alerts", desc: "Critical alerts about account security and wallet syncs.", icon: Shield, checked: true },
-               ].map((item, idx) => (
-                 <div key={idx} className="flex items-center justify-between p-4 border rounded-xl hover:bg-accent/50 transition-colors cursor-pointer">
-                   <div className="flex gap-4">
-                     <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center text-muted-foreground">
-                       <item.icon className="h-5 w-5" />
-                     </div>
-                     <div>
-                       <p className="text-sm font-bold">{item.title}</p>
-                       <p className="text-xs text-muted-foreground">{item.desc}</p>
-                     </div>
-                   </div>
-                   <div className={cn(
-                     "w-12 h-6 rounded-full p-1 transition-colors",
-                     item.checked ? "bg-primary" : "bg-accent"
-                   )}>
-                     <div className={cn(
-                       "h-4 w-4 rounded-full bg-white transition-transform",
-                       item.checked ? "translate-x-6" : "translate-x-0"
-                     )} />
-                   </div>
-                 </div>
-               ))}
-            </CardContent>
-          </Card>
+
         </div>
 
         <div className="space-y-6">
@@ -195,9 +173,23 @@ export function ProfileClient({
             </CardContent>
           </Card>
           
+          <div className="md:hidden pt-4 border-t border-border/50">
+            <Button 
+              variant="destructive" 
+              className="w-full h-12 rounded-2xl text-base font-bold shadow-xl shadow-red-500/10 flex items-center justify-center gap-2"
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-5 w-5" />
+              Sign Out
+            </Button>
+            <p className="text-[10px] text-muted-foreground text-center mt-4 px-6 leading-relaxed">
+              If you wish to remove your account permanently, use the button below. This action cannot be undone.
+            </p>
+          </div>
+          
           <Button 
             variant="ghost" 
-            className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 text-xs py-6"
+            className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 text-xs py-6 mt-4"
             onClick={() => setShowConfirmDelete(true)}
             disabled={isDeleting}
           >

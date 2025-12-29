@@ -139,12 +139,12 @@ export default function CreatePayrollPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       {/* Currency Toggle */}
-      <div className="flex justify-end">
-        <div className="flex bg-accent rounded-xl p-1 shrink-0">
+      <div className="flex justify-end sticky top-[72px] z-30 py-2 bg-background/50 backdrop-blur-sm -mx-4 px-4 sm:static sm:bg-transparent sm:p-0 sm:m-0">
+        <div className="flex bg-accent rounded-xl p-1 shrink-0 shadow-lg sm:shadow-none">
           <Button 
             variant={currency === 'STX' ? 'default' : 'ghost'} 
             size="sm" 
-            className="rounded-md h-8 text-xs font-bold"
+            className="rounded-md h-8 px-4 text-[10px] sm:text-xs font-bold"
             onClick={() => setCurrency('STX')}
           >
             STX
@@ -153,7 +153,7 @@ export default function CreatePayrollPage() {
             <Button 
               variant="ghost" 
               size="sm" 
-              className="rounded-md h-8 text-xs font-bold"
+              className="rounded-md h-8 px-4 text-[10px] sm:text-xs font-bold"
               onClick={() => {
                 showNotification('info', 'Coming Soon', 'Bitcoin payments will be available once sBTC launches. Stay tuned!')
               }}
@@ -161,7 +161,7 @@ export default function CreatePayrollPage() {
               BTC
             </Button>
             <div className="absolute -top-1 -right-1 pointer-events-none">
-              <span className="text-[7px] font-black uppercase tracking-tight bg-orange-500 text-white px-1 py-0.5 rounded-full animate-pulse">
+              <span className="text-[6px] sm:text-[7px] font-black uppercase tracking-tight bg-orange-500 text-white px-1 py-0.5 rounded-full animate-pulse">
                 Soon
               </span>
             </div>

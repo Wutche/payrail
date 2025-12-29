@@ -131,52 +131,52 @@ export function RecipientsClient({ initialRecipients }: { initialRecipients: any
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-muted-foreground font-medium bg-accent/5">
-                    <th className="px-6 py-4 text-left">Recipient Name</th>
-                    <th className="px-6 py-4 text-left">Role</th>
-                    <th className="px-6 py-4 text-left">Wallet Address</th>
-                    <th className="px-6 py-4 text-left">Rate (USD)</th>
-                    <th className="px-6 py-4 text-left">Status</th>
+                    <th className="px-6 py-4 text-left text-[10px] md:text-sm">Recipient Name</th>
+                    <th className="px-6 py-4 text-left hidden md:table-cell">Role</th>
+                    <th className="px-6 py-4 text-left text-[10px] md:text-sm">Wallet Address</th>
+                    <th className="px-6 py-4 text-left hidden lg:table-cell">Rate (USD)</th>
+                    <th className="px-6 py-4 text-left hidden sm:table-cell">Status</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y relative">
                   {paginatedRecipients.map((f) => (
                     <tr key={f.id} className="group hover:bg-accent/20 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary group-hover:scale-110 transition-transform">
+                      <td className="px-3 py-4 md:px-6">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary group-hover:scale-110 transition-transform text-[10px] md:text-base">
                             {f.name.split(' ').map((n: string) => n[0]).join('')}
                           </div>
                           <div>
-                            <p className="font-bold">{f.name}</p>
-                            <p className="text-xs text-muted-foreground">{f.email}</p>
+                            <p className="font-bold text-[10px] md:text-sm truncate max-w-[100px] md:max-w-none">{f.name}</p>
+                            <p className="text-[8px] md:text-xs text-muted-foreground hidden md:block">{f.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 hidden md:table-cell">
                         <span className="text-xs font-medium px-2 py-1 bg-accent/50 rounded-lg">{f.role || 'No Role'}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-4 md:px-6">
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2 font-mono text-[10px] bg-accent/30 w-fit px-2 py-0.5 rounded-lg">
-                            <span className="text-[8px] font-bold text-primary uppercase">STX</span>
-                            {f.wallet_address.substring(0, 5)}...{f.wallet_address.substring(f.wallet_address.length - 4)}
+                          <div className="flex items-center gap-1 md:gap-2 font-mono text-[8px] md:text-[10px] bg-accent/30 w-fit px-1.5 py-0.5 rounded-lg whitespace-nowrap">
+                            <span className="text-[7px] md:text-[8px] font-bold text-primary uppercase">STX</span>
+                            {f.wallet_address.substring(0, 4)}...{f.wallet_address.substring(f.wallet_address.length - 4)}
                           </div>
                           {f.btc_address && (
-                            <div className="flex items-center gap-2 font-mono text-[10px] bg-accent/30 w-fit px-2 py-0.5 rounded-lg">
-                              <span className="text-[8px] font-bold text-orange-500 uppercase">BTC</span>
-                              {f.btc_address.substring(0, 5)}...{f.btc_address.substring(f.btc_address.length - 4)}
+                            <div className="flex items-center gap-1 md:gap-2 font-mono text-[8px] md:text-[10px] bg-accent/30 w-fit px-1.5 py-0.5 rounded-lg whitespace-nowrap">
+                              <span className="text-[7px] md:text-[8px] font-bold text-orange-500 uppercase">BTC</span>
+                              {f.btc_address.substring(0, 4)}...{f.btc_address.substring(f.btc_address.length - 4)}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 hidden lg:table-cell">
                         <div className="flex flex-col">
                           <span className="font-bold">${f.rate}</span>
                           <span className="text-[10px] text-muted-foreground uppercase">{f.payment_frequency}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 hidden sm:table-cell">
                         <span className={cn(
                           "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
                           f.status === 'Active' ? "bg-green-100 text-green-700 dark:bg-green-950/30" : "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/30"
@@ -184,37 +184,37 @@ export function RecipientsClient({ initialRecipients }: { initialRecipients: any
                           {f.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-3 py-4 md:px-6 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1 md:gap-2">
                            <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-7 w-7 md:h-8 md:w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() => setTrackingRecipient(f)}
                            >
-                              <HistoryIcon className="h-3.5 w-3.5" />
+                              <HistoryIcon className="h-3 w-3 md:h-3.5 md:w-3.5" />
                            </Button>
                            <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-7 w-7 md:h-8 md:w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() => setEditingMember(f)}
                            >
-                              <Edit2 className="h-3.5 w-3.5" />
+                              <Edit2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
                            </Button>
                            <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-7 w-7 md:h-8 md:w-8 text-red-500 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDelete(f.id);
                               }}
                            >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
                            </Button>
                            <div className="group-hover:hidden transition-all">
-                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                              <MoreHorizontal className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
                            </div>
                         </div>
                       </td>

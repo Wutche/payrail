@@ -41,7 +41,6 @@ export function MobileNav() {
     { name: 'Wallet', href: '/dashboard/payments', icon: Wallet },
     { name: 'History', href: '/dashboard/history', icon: History },
     { name: 'Profile', href: '/dashboard/profile', icon: Settings, isProfile: true },
-    { name: 'More', href: '/dashboard/more', icon: MoreHorizontal },
   ]
 
   const navItems = role === 'business' ? businessLinks : freelancerLinks

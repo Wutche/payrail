@@ -78,56 +78,56 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
         animate="visible"
       >
         <motion.div
-          className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+          className="flex flex-col md:flex-row md:items-center justify-between gap-6"
           variants={itemVariants}
         >
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">Organization Overview</h1>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight whitespace-nowrap">Organization Overview</h1>
               {isMounted && (
                 <span className={cn(
-                  "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1",
+                  "text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shrink-0",
                   isConnected ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                 )}>
-                  {isConnected ? <ShieldCheck className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                  {isConnected ? <ShieldCheck className="h-2.5 w-2.5 sm:h-3 w-3" /> : <Clock className="h-2.5 w-2.5 sm:h-3 w-3" />}
                   {isConnected ? "On-Chain Verified" : "Wallet Not Connected"}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <span className="text-sm font-medium">{initialOrgName || user?.user_metadata?.organization || "My Organization"}</span>
+            <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
+              <span className="text-xs sm:text-sm font-medium">{initialOrgName || user?.user_metadata?.organization || "My Organization"}</span>
               <span className="text-xs opacity-50">•</span>
               {!isMounted ? (
-                <div className="h-5 w-24 bg-accent/50 animate-pulse rounded-lg" />
+                <div className="h-4 w-20 sm:h-5 w-24 bg-accent/50 animate-pulse rounded-lg" />
               ) : (
-                <code className="text-xs bg-accent/50 px-2 py-0.5 rounded-lg border border-border/50">
+                <code className="text-[10px] sm:text-xs bg-accent/50 px-1.5 sm:px-2 py-0.5 rounded-lg border border-border/50 font-mono">
                   {address ? `${address.substring(0, 5)}...${address.substring(address.length - 4)}` : "----"}
                 </code>
               )}
             </div>
           </div>
           {isMounted && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto flex-wrap">
               {!isConnected && (
-                <Button onClick={connectWallet} variant="outline" className="rounded-xl border-primary text-primary">
+                <Button onClick={connectWallet} variant="outline" className="flex-1 md:flex-none rounded-xl border-primary text-primary text-xs sm:text-sm h-10">
                   Connect Wallet
                 </Button>
               )}
               <Button 
                   variant="outline" 
                   size="sm" 
-                  className="rounded-xl h-10 px-6 font-semibold"
+                  className="flex-1 md:flex-none rounded-xl h-10 px-4 sm:px-6 font-semibold text-xs sm:text-sm whitespace-nowrap"
                   onClick={() => setIsSendModalOpen(true)}
               >
-                <Send className="mr-2 h-4 w-4" />
+                <Send className="mr-2 h-3.5 w-3.5 sm:h-4 w-4" />
                 Transfer
               </Button>
               <Button 
                   size="sm" 
-                  className="rounded-xl h-10 px-6 font-bold shadow-lg shadow-primary/20"
+                  className="flex-1 md:flex-none rounded-xl h-10 px-4 sm:px-6 font-bold shadow-lg shadow-primary/20 text-xs sm:text-sm whitespace-nowrap"
                   onClick={() => setIsAddModalOpen(true)}
               >
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="mr-2 h-3.5 w-3.5 sm:h-4 w-4" />
                 Add Recipient
               </Button>
             </div>
