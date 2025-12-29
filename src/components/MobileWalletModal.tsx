@@ -34,9 +34,30 @@ const MOBILE_WALLETS = [
   },
 ]
 
-// Detect mobile device
-function isMobileDevice() {
+// Detect if we're inside a wallet's in-app browser
+// In these cases, we should use standard Stacks Connect, not the mobile modal
+function isInWalletBrowser(): boolean {
   if (typeof window === 'undefined') return false
+  
+  // Check for wallet provider injection (Leather and other wallets inject these)
+  const hasStacksProvider = !!(window as any).StacksProvider || !!(window as any).LeatherProvider
+  const hasHiroWallet = !!(window as any).HiroWalletProvider
+  
+  // Check user agent for known wallet in-app browsers
+  const ua = navigator.userAgent.toLowerCase()
+  const isLeatherBrowser = ua.includes('leather')
+  const isXverseBrowser = ua.includes('xverse')
+  
+  return hasStacksProvider || hasHiroWallet || isLeatherBrowser || isXverseBrowser
+}
+
+// Detect mobile device (but NOT if we're in a wallet's in-app browser)
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  
+  // If we're inside a wallet's browser, treat it as desktop (use standard connect)
+  if (isInWalletBrowser()) return false
+  
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 

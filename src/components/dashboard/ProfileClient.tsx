@@ -190,17 +190,17 @@ export function ProfileClient({
                 )}
                 onClick={!isTogglingNotifications ? handleToggleEmailNotifications : undefined}
               >
-                <div className="flex gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center text-muted-foreground">
+                <div className="flex gap-4 items-start flex-1 min-w-0">
+                  <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center text-muted-foreground shrink-0">
                     <Mail className="h-5 w-5" />
                   </div>
-                  <div>
-                    <p className="text-sm font-bold">Email Notifications</p>
-                    <p className="text-xs text-muted-foreground">Receive email alerts when payments are sent or received.</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate md:whitespace-normal">Email Notifications</p>
+                    <p className="text-xs text-muted-foreground leading-tight">Receive email alerts when payments are sent or received.</p>
                   </div>
                 </div>
                 <div className={cn(
-                  "w-12 h-6 rounded-full p-1 transition-colors",
+                  "w-12 h-6 rounded-full p-1 transition-colors shrink-0 ml-4",
                   emailNotifications ? "bg-primary" : "bg-accent"
                 )}>
                   <div className={cn(
