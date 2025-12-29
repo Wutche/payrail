@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { motion, Variants } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
-import { useStacks } from "@/hooks/useStacks";
+import { useMobileWallet } from "@/hooks/useMobileWallet";
 import { SendCryptoModal, AddTeamMemberModal } from "./ActionModals";
 import { BlockchainStats, RecentTransactionsList } from "./BusinessDashboardComponents";
 import Link from "next/link";
@@ -51,7 +51,7 @@ function ListSkeleton() {
 
 export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { initialOrgName?: string; initialRecipients?: any[] }) {
   const { user } = useAuth();
-  const { isConnected, address, connectWallet, getSTXPrice } = useStacks();
+  const { isConnected, address, connect, getSTXPrice, MobileModal } = useMobileWallet();
   const [isMounted, setIsMounted] = React.useState(false)
   const [isSendModalOpen, setIsSendModalOpen] = React.useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
@@ -109,7 +109,7 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
           {isMounted && (
             <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto flex-wrap">
               {!isConnected && (
-                <Button onClick={connectWallet} variant="outline" className="flex-1 md:flex-none rounded-xl border-primary text-primary text-xs sm:text-sm h-10">
+                <Button onClick={connect} variant="outline" className="flex-1 md:flex-none rounded-xl border-primary text-primary text-xs sm:text-sm h-10">
                   Connect Wallet
                 </Button>
               )}
@@ -214,6 +214,7 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
 
       <SendCryptoModal isOpen={isSendModalOpen} onClose={() => setIsSendModalOpen(false)} />
       <AddTeamMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+      <MobileModal />
     </React.Fragment>
   );
 }
