@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Smartphone, ExternalLink, Download, Wallet } from 'lucide-react'
+import { X, Smartphone, ExternalLink, Download, Wallet, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -14,19 +14,23 @@ const MOBILE_WALLETS = [
     description: 'Popular Stacks & Bitcoin wallet',
     icon: '/wallets/xverse.svg',
     color: 'from-orange-500 to-red-500',
+    // Xverse supports universal links that open their in-app browser
     deepLink: (returnUrl: string) => `https://connect.xverse.app/browser?url=${encodeURIComponent(returnUrl)}`,
     playStore: 'https://play.google.com/store/apps/details?id=com.xverse.wallet',
     appStore: 'https://apps.apple.com/app/xverse-bitcoin-web3-wallet/id1552272513',
+    supportsDeepLink: true,
   },
   {
     id: 'leather',
     name: 'Leather',
-    description: 'Secure Bitcoin & Stacks wallet',
+    description: 'Open in-app browser manually',
     icon: '/wallets/leather.svg',
     color: 'from-purple-500 to-indigo-500',
-    deepLink: (returnUrl: string) => `leather://browser?url=${encodeURIComponent(returnUrl)}`,
+    // Leather doesn't support proper deep linking from web - provide manual instructions
+    deepLink: null,
     playStore: 'https://play.google.com/store/apps/details?id=io.leather.wallet',
     appStore: 'https://apps.apple.com/app/leather-bitcoin-wallet/id6451326108',
+    supportsDeepLink: false,
   },
 ]
 
@@ -53,6 +57,8 @@ interface MobileWalletModalProps {
 
 export function MobileWalletModal({ isOpen, onClose, onDesktopConnect }: MobileWalletModalProps) {
   const [mounted, setMounted] = React.useState(false)
+  const [copiedUrl, setCopiedUrl] = React.useState(false)
+  const [showLeatherInstructions, setShowLeatherInstructions] = React.useState(false)
   const isMobile = isMobileDevice()
   const mobileOS = getMobileOS()
 
@@ -60,34 +66,37 @@ export function MobileWalletModal({ isOpen, onClose, onDesktopConnect }: MobileW
     setMounted(true)
   }, [])
 
-  const handleWalletClick = (wallet: typeof MOBILE_WALLETS[0]) => {
+  const handleCopyUrl = async () => {
     const currentUrl = window.location.href
-    const deepLinkUrl = wallet.deepLink(currentUrl)
+    await navigator.clipboard.writeText(currentUrl)
+    setCopiedUrl(true)
+    setTimeout(() => setCopiedUrl(false), 2000)
+  }
+
+  const handleWalletClick = (wallet: typeof MOBILE_WALLETS[0]) => {
+    // For wallets without deep link support, show instructions
+    if (!wallet.supportsDeepLink) {
+      setShowLeatherInstructions(true)
+      return
+    }
+
+    const currentUrl = window.location.href
+    const deepLinkUrl = wallet.deepLink!(currentUrl)
     
     // Try to open the app via deep link
     const startTime = Date.now()
     
-    // Create a hidden iframe to try the deep link
-    const iframe = document.createElement('iframe')
-    iframe.style.display = 'none'
-    iframe.src = deepLinkUrl
-    document.body.appendChild(iframe)
-    
-    // Also try window.location for universal links
-    setTimeout(() => {
-      window.location.href = deepLinkUrl
-    }, 100)
+    // For universal links (https://), just navigate directly
+    window.location.href = deepLinkUrl
     
     // If app doesn't open within 2 seconds, redirect to app store
     setTimeout(() => {
       if (document.hidden || Date.now() - startTime > 2500) {
         // App likely opened
-        document.body.removeChild(iframe)
         return
       }
       
       // App not installed - redirect to store
-      document.body.removeChild(iframe)
       const storeUrl = mobileOS === 'ios' ? wallet.appStore : wallet.playStore
       window.open(storeUrl, '_blank')
     }, 2000)
@@ -146,34 +155,92 @@ export function MobileWalletModal({ isOpen, onClose, onDesktopConnect }: MobileW
             <div className="p-6 space-y-4">
               {isMobile ? (
                 <>
-                  {/* Mobile Wallet Options */}
-                  {MOBILE_WALLETS.map((wallet) => (
-                    <button
-                      key={wallet.id}
-                      onClick={() => handleWalletClick(wallet)}
-                      className="w-full flex items-center gap-4 p-4 border rounded-2xl hover:bg-accent/50 transition-all group"
-                    >
-                      <div className={cn(
-                        "h-12 w-12 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-lg",
-                        wallet.color
-                      )}>
-                        {wallet.name[0]}
+                  {showLeatherInstructions ? (
+                    <>
+                      {/* Leather Manual Instructions */}
+                      <div className="text-center space-y-4">
+                        <div className="h-12 w-12 mx-auto rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-lg">
+                          L
+                        </div>
+                        <h3 className="font-bold">Connect via Leather</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Leather wallet doesn't support direct linking yet. Follow these steps:
+                        </p>
                       </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-bold">{wallet.name}</p>
-                        <p className="text-xs text-muted-foreground">{wallet.description}</p>
-                      </div>
-                      <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </button>
-                  ))}
 
-                  {/* Hint */}
-                  <div className="flex items-center gap-2 p-3 bg-accent/30 rounded-xl">
-                    <Download className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <p className="text-xs text-muted-foreground">
-                      Don't have a wallet? Click any option above to download from the app store.
-                    </p>
-                  </div>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3 p-3 bg-accent/30 rounded-xl">
+                          <span className="h-6 w-6 shrink-0 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</span>
+                          <p className="text-sm">Open the Leather app on your phone</p>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-accent/30 rounded-xl">
+                          <span className="h-6 w-6 shrink-0 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">2</span>
+                          <p className="text-sm">Go to the <strong>Browser</strong> tab at the bottom</p>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-accent/30 rounded-xl">
+                          <span className="h-6 w-6 shrink-0 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">3</span>
+                          <p className="text-sm">Paste this URL in the browser:</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleCopyUrl}
+                        className="w-full flex items-center justify-between p-4 bg-accent border border-border rounded-xl hover:bg-accent/80 transition-colors"
+                      >
+                        <code className="text-xs truncate flex-1 text-left font-mono">
+                          {typeof window !== 'undefined' ? window.location.href : ''}
+                        </code>
+                        {copiedUrl ? (
+                          <Check className="h-5 w-5 text-green-500 shrink-0 ml-2" />
+                        ) : (
+                          <Copy className="h-5 w-5 text-muted-foreground shrink-0 ml-2" />
+                        )}
+                      </button>
+
+                      {copiedUrl && (
+                        <p className="text-center text-sm text-green-500 font-medium">URL copied! Now paste it in Leather's browser.</p>
+                      )}
+
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowLeatherInstructions(false)}
+                        className="w-full rounded-xl"
+                      >
+                        ← Back to wallet options
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      {/* Mobile Wallet Options */}
+                      {MOBILE_WALLETS.map((wallet) => (
+                        <button
+                          key={wallet.id}
+                          onClick={() => handleWalletClick(wallet)}
+                          className="w-full flex items-center gap-4 p-4 border rounded-2xl hover:bg-accent/50 transition-all group"
+                        >
+                          <div className={cn(
+                            "h-12 w-12 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-lg",
+                            wallet.color
+                          )}>
+                            {wallet.name[0]}
+                          </div>
+                          <div className="flex-1 text-left">
+                            <p className="font-bold">{wallet.name}</p>
+                            <p className="text-xs text-muted-foreground">{wallet.description}</p>
+                          </div>
+                          <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </button>
+                      ))}
+
+                      {/* Hint */}
+                      <div className="flex items-center gap-2 p-3 bg-accent/30 rounded-xl">
+                        <Download className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <p className="text-xs text-muted-foreground">
+                          Don't have a wallet? Tap Xverse to download from the app store.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
@@ -212,3 +279,4 @@ export function MobileWalletModal({ isOpen, onClose, onDesktopConnect }: MobileW
 
 // Export helper for checking mobile
 export { isMobileDevice, getMobileOS }
+
