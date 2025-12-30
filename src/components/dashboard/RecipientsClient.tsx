@@ -21,6 +21,7 @@ import { AddTeamMemberModal } from "@/components/dashboard/ActionModals"
 import { deleteTeamMember } from "@/app/actions/team"
 import { useRouter } from "next/navigation"
 import { RecipientDetailsModal } from "./RecipientDetailsModal"
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import { History as HistoryIcon } from "lucide-react"
 
 const containerVariants = {
@@ -50,15 +51,33 @@ export function RecipientsClient({ initialRecipients }: { initialRecipients: any
   const { showNotification } = useNotification()
   const router = useRouter()
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to remove this team member?")) {
-      const { error } = await deleteTeamMember(id)
+  // Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = React.useState<{ isOpen: boolean; memberId: string | null; memberName: string }>({
+    isOpen: false,
+    memberId: null,
+    memberName: ''
+  })
+  const [isDeleting, setIsDeleting] = React.useState(false)
+
+  const handleDeleteRequest = (id: string, name: string) => {
+    setDeleteConfirm({ isOpen: true, memberId: id, memberName: name })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.memberId) return
+    
+    setIsDeleting(true)
+    try {
+      const { error } = await deleteTeamMember(deleteConfirm.memberId)
       if (error) {
         showNotification('error', 'Failed', error)
       } else {
         showNotification('success', 'Removed', 'Member removed successfully.')
         router.refresh()
       }
+    } finally {
+      setIsDeleting(false)
+      setDeleteConfirm({ isOpen: false, memberId: null, memberName: '' })
     }
   }
 
@@ -208,7 +227,7 @@ export function RecipientsClient({ initialRecipients }: { initialRecipients: any
                               className="h-7 w-7 md:h-8 md:w-8 text-red-500 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDelete(f.id);
+                                handleDeleteRequest(f.id, f.name);
                               }}
                            >
                               <Trash2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
@@ -262,6 +281,18 @@ export function RecipientsClient({ initialRecipients }: { initialRecipients: any
           </CardContent>
         </Card>
       </motion.div>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, memberId: null, memberName: '' })}
+        onConfirm={handleDeleteConfirm}
+        title="Remove Recipient?"
+        message={`Are you sure you want to remove "${deleteConfirm.memberName}"? This action cannot be undone.`}
+        confirmText="Remove"
+        cancelText="Keep"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </motion.div>
   )
 }

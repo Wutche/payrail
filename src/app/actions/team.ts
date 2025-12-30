@@ -54,6 +54,32 @@ export async function addTeamMember(member: {
 
   if (!user) return { error: "Not authenticated" }
 
+  // Validate email if provided
+  if (member.email) {
+    // Check if email is already registered as a user account
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('email', member.email)
+      .maybeSingle()
+    
+    if (existingProfile) {
+      return { error: "This email is already registered as a user account. Please use a different email." }
+    }
+
+    // Check if email already exists in team members for this organization
+    const { data: existingMember } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('organization_id', user.id)
+      .eq('email', member.email)
+      .maybeSingle()
+    
+    if (existingMember) {
+      return { error: "A recipient with this email already exists in your organization." }
+    }
+  }
+
   const { error } = await supabase
     .from('team_members')
     .insert([{
@@ -84,6 +110,33 @@ export async function updateTeamMember(id: string, updates: any) {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return { error: "Not authenticated" }
+
+  // Validate email if it's being updated
+  if (updates.email) {
+    // Check if email is already registered as a user account
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('email', updates.email)
+      .maybeSingle()
+    
+    if (existingProfile) {
+      return { error: "This email is already registered as a user account. Please use a different email." }
+    }
+
+    // Check if email already exists in another team member for this organization
+    const { data: existingMember } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('organization_id', user.id)
+      .eq('email', updates.email)
+      .neq('id', id) // Exclude the current member being updated
+      .maybeSingle()
+    
+    if (existingMember) {
+      return { error: "A recipient with this email already exists in your organization." }
+    }
+  }
 
   const { error } = await supabase
     .from('team_members')

@@ -115,6 +115,12 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
       return
     }
 
+    // Validate that we have a valid STX price before proceeding
+    if (stxPrice <= 0) {
+      showNotification('error', 'Price Not Available', 'Unable to fetch STX price. Please wait a moment and try again.')
+      return
+    }
+
     try {
       setIsSubmitting(schedule.id)
       
@@ -210,7 +216,6 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
     if (dueSchedules.length === 0) return
     
     setIsPayingAll(true)
-    let successCount = 0
     
     try {
       for (const schedule of dueSchedules) {
@@ -218,14 +223,14 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
           // First mark as ready
           await handleMarkReady(schedule.id)
         }
-        // Then run payroll
+        // Then run payroll - note: this triggers wallet popup but doesn't wait for approval
+        // Success notifications are handled in the onFinish callback of executeBatchPayroll
         await handleRunPayroll(schedule)
-        successCount++
       }
-      
-      showNotification('success', 'All Due Paid', `Successfully processed ${successCount} payrolls!`)
+      // Don't show success here - the individual onFinish callbacks handle success notifications
+      // after the user actually approves each transaction on-chain
     } catch (err: any) {
-      showNotification('error', 'Error', `Processed ${successCount} payrolls before error: ${err.message}`)
+      showNotification('error', 'Error', err.message || 'An error occurred while processing payrolls')
     } finally {
       setIsPayingAll(false)
     }
