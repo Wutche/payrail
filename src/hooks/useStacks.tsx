@@ -47,23 +47,36 @@ export function useStacks() {
         window.location.reload()
       },
       onCancel: () => {
+        // User cancelled login - this is expected, do nothing
         console.log('User cancelled login')
       },
       theme: 'dark' as const,
     };
 
-    // Try multiple export names to handle different package versions/bundlers
-    const connectFn = StacksConnect.showConnect || 
-                     (StacksConnect as any).authenticate || 
-                     (StacksConnect as any).showBlockstackConnect;
+    try {
+      // Try multiple export names to handle different package versions/bundlers
+      const connectFn = StacksConnect.showConnect || 
+                       (StacksConnect as any).authenticate || 
+                       (StacksConnect as any).showBlockstackConnect;
 
-    if (typeof connectFn === 'function') {
-      connectFn(authOptions);
-    } else {
-      console.error('Could not find Stacks connection function in @stacks/connect');
-      alert('Wallet connection error. Please ensure you have a Stacks wallet installed.');
+      if (typeof connectFn === 'function') {
+        connectFn(authOptions);
+      } else {
+        console.error('Could not find Stacks connection function in @stacks/connect');
+        showNotification('error', 'Wallet connection error. Please ensure you have a Stacks wallet installed.');
+      }
+    } catch (error: any) {
+      // Handle user cancellation gracefully - this is NOT an error
+      if (error?.message?.includes('User canceled') || 
+          error?.message?.includes('User rejected') ||
+          error?.code === 4001) {
+        console.log('User cancelled wallet connection');
+        return;
+      }
+      // Log other errors but don't show to user
+      console.error('Wallet connection error:', error);
     }
-  }, [])
+  }, [showNotification])
 
   const disconnectWallet = useCallback(() => {
     userSession.signUserOut()
@@ -318,6 +331,37 @@ export function useStacks() {
     }
   }, [])
 
+  // Fetch events/internal transfers for a specific transaction
+  const getTransactionEvents = useCallback(async (txId: string) => {
+    try {
+      const isMainnet = CONTRACT_ADDRESS.startsWith('S') && !CONTRACT_ADDRESS.startsWith('ST')
+      const apiUrl = isMainnet
+        ? 'https://api.mainnet.hiro.so' 
+        : 'https://api.testnet.hiro.so'
+      
+      const response = await fetch(`${apiUrl}/extended/v1/tx/${txId}`)
+      if (!response.ok) return null
+      
+      const tx = await response.json()
+      
+      // Extract STX transfer events from contract call
+      // These are the actual payments to recipients in batch payroll
+      const stxEvents = (tx.events || []).filter((e: any) => e.event_type === 'stx_transfer_event')
+      
+      return {
+        tx,
+        stxTransfers: stxEvents.map((e: any) => ({
+          sender: e.stx_transfer_event?.sender,
+          recipient: e.stx_transfer_event?.recipient,
+          amount: Number(e.stx_transfer_event?.amount || 0) / 1_000_000, // Convert uSTX to STX
+        }))
+      }
+    } catch (e) {
+      console.error('Error fetching transaction events:', e)
+      return null
+    }
+  }, [])
+
   return {
     address,
     isConnected,
@@ -331,6 +375,7 @@ export function useStacks() {
     getBusinessInfo,
     getSTXBalance,
     getRecentTransactions,
+    getTransactionEvents,
     getSTXPrice,
     getBTCPrice,
     contractAddress: CONTRACT_ADDRESS,

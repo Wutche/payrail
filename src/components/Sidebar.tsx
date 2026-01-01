@@ -16,7 +16,8 @@ import {
   ChevronRight,
   LogOut,
   ExternalLink,
-  UserCircle
+  UserCircle,
+  Loader2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -31,11 +32,13 @@ interface SidebarItem {
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = React.useState(false)
+  const [isSigningOut, setIsSigningOut] = React.useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const { role, signOut } = useAuth()
 
   const handleSignOut = async () => {
+    setIsSigningOut(true)
     await logout()
     await signOut()
     router.push('/login')
@@ -159,9 +162,14 @@ export function Sidebar() {
             variant="ghost" 
             className={cn("w-full justify-start gap-3 px-3 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20", isCollapsed && "justify-center px-0")}
             onClick={handleSignOut}
+            disabled={isSigningOut}
           >
-            <LogOut className="h-5 w-5 shrink-0" />
-            {!isCollapsed && <span className="text-sm font-medium">Sign Out</span>}
+            {isSigningOut ? (
+              <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+            ) : (
+              <LogOut className="h-5 w-5 shrink-0" />
+            )}
+            {!isCollapsed && <span className="text-sm font-medium">{isSigningOut ? "Signing out..." : "Sign Out"}</span>}
           </Button>
         </div>
       </div>

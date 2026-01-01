@@ -30,6 +30,7 @@ export function ProfileClient({
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [showConfirmDelete, setShowConfirmDelete] = React.useState(false)
   const [isUpdating, setIsUpdating] = React.useState(false)
+  const [isSigningOut, setIsSigningOut] = React.useState(false)
   const [emailNotifications, setEmailNotifications] = React.useState(initialEmailNotifications)
   const [isTogglingNotifications, setIsTogglingNotifications] = React.useState(false)
   const [formData, setFormData] = React.useState({
@@ -55,6 +56,7 @@ export function ProfileClient({
   }
 
   const handleSignOut = async () => {
+    setIsSigningOut(true)
     await logout()
     await signOut()
     router.push('/login')
@@ -239,9 +241,14 @@ export function ProfileClient({
               variant="destructive" 
               className="w-full h-12 rounded-2xl text-base font-bold shadow-xl shadow-red-500/10 flex items-center justify-center gap-2"
               onClick={handleSignOut}
+              disabled={isSigningOut}
             >
-              <LogOut className="h-5 w-5" />
-              Sign Out
+              {isSigningOut ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <LogOut className="h-5 w-5" />
+              )}
+              {isSigningOut ? "Signing out..." : "Sign Out"}
             </Button>
             <p className="text-[10px] text-muted-foreground text-center mt-4 px-6 leading-relaxed">
               If you wish to remove your account permanently, use the button below. This action cannot be undone.

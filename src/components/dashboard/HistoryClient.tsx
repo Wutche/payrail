@@ -6,7 +6,8 @@ import {
   ArrowUpRight, 
   ArrowDownLeft, 
   ExternalLink,
-  Download
+  Download,
+  Wallet
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -16,6 +17,8 @@ import { DataTable } from "@/components/dashboard/DataTable"
 import { formatTxStatus, TransactionDetailsModal, enrichTransaction, type EnrichedTransaction, truncateAddress } from "./ActionModals"
 import { getTeamMembers, getTeamProfile } from "@/app/actions/team"
 import { Eye } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
+import { createClient } from "@/lib/supabase"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -37,8 +40,12 @@ const itemVariants = {
 import { useStacks } from "@/hooks/useStacks"
 
 export function HistoryClient({ initialTransactions = [] }: { initialTransactions?: any[] }) {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = React.useState<'all' | 'sent' | 'received'>('all')
-  const { address, getRecentTransactions, isTestnet, getBusinessInfo, getSTXPrice } = useStacks()
+  const { address: connectedAddress, isConnected, getRecentTransactions, isTestnet, getBusinessInfo, getSTXPrice, getTransactionEvents } = useStacks()
+  const supabase = React.useMemo(() => createClient(), [])
+  
+  const [storedWalletAddress, setStoredWalletAddress] = React.useState<string | null>(null)
   const [txs, setTxs] = React.useState<EnrichedTransaction[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isMounted, setIsMounted] = React.useState(false)
@@ -48,42 +55,135 @@ export function HistoryClient({ initialTransactions = [] }: { initialTransaction
     setIsMounted(true)
   }, [])
 
+  // Fetch user's stored wallet address from their profile
+  React.useEffect(() => {
+    async function fetchStoredWallet() {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('wallet_address')
+          .eq('id', user.id)
+          .single()
+        
+        setStoredWalletAddress(profile?.wallet_address || null)
+      }
+    }
+    fetchStoredWallet()
+  }, [user, supabase])
+
+  // Use connected wallet address - either stored or currently connected
+  // For business users, show their transactions even if wallet isn't synced to profile yet
+  const effectiveAddress = storedWalletAddress || (isConnected ? connectedAddress : null)
+  const hasWallet = !!effectiveAddress
+
   React.useEffect(() => {
     async function load() {
-        if (address) {
+        if (hasWallet && effectiveAddress) {
             setIsLoading(true)
             try {
                 const [rawTxs, { data: members }, { data: profile }, businessInfo, price] = await Promise.all([
-                    getRecentTransactions(address),
+                    getRecentTransactions(effectiveAddress),
                     getTeamMembers(),
                     getTeamProfile(),
-                    getBusinessInfo(address),
+                    getBusinessInfo(effectiveAddress),
                     getSTXPrice()
                 ]);
                 
                 const orgName = profile?.organization_name || profile?.full_name || "My Business";
 
-                const enriched = (rawTxs || []).map((tx: any) => enrichTransaction(tx, members || [], orgName, address, price));
-                setTxs(enriched)
+                // Process transactions and expand batch payrolls
+                const expandedTxs: EnrichedTransaction[] = [];
+                
+                for (const tx of (rawTxs || [])) {
+                    // Check if this is a batch payroll contract call
+                    const isBatchPayroll = tx.tx_type === 'contract_call' && 
+                        tx.contract_call?.function_name === 'batch-payroll';
+                    
+                    if (isBatchPayroll && tx.tx_id && tx.tx_status === 'success') {
+                        // Fetch the actual STX transfers from this batch payroll
+                        const events = await getTransactionEvents(tx.tx_id);
+                        
+                        if (events && events.stxTransfers && events.stxTransfers.length > 0) {
+                            // Create a virtual transaction for each recipient
+                            for (const transfer of events.stxTransfers) {
+                                // Find the team member name for this recipient
+                                const member = members?.find((m: any) => 
+                                    m.wallet_address?.toLowerCase() === transfer.recipient?.toLowerCase()
+                                );
+                                
+                                const virtualTx = {
+                                    ...tx,
+                                    // Override with actual transfer data
+                                    sender_address: transfer.sender,
+                                    token_transfer: {
+                                        recipient_address: transfer.recipient,
+                                        amount: transfer.amount * 1_000_000, // Convert back to uSTX for enrichTransaction
+                                    },
+                                    stx_sent: transfer.amount * 1_000_000,
+                                    // Add a virtual ID to make each row unique
+                                    tx_id: `${tx.tx_id}-${transfer.recipient}`,
+                                    _parentTxId: tx.tx_id, // Keep reference to original
+                                    _batchRecipientName: member?.name,
+                                };
+                                
+                                expandedTxs.push(enrichTransaction(virtualTx, members || [], orgName, effectiveAddress, price));
+                            }
+                        } else {
+                            // If no events found, still show the parent transaction
+                            expandedTxs.push(enrichTransaction(tx, members || [], orgName, effectiveAddress, price));
+                        }
+                    } else {
+                        // Regular transaction
+                        expandedTxs.push(enrichTransaction(tx, members || [], orgName, effectiveAddress, price));
+                    }
+                }
+                
+                setTxs(expandedTxs);
             } catch (e) {
                 console.error("Failed to load history", e)
             } finally {
                 setIsLoading(false)
             }
+        } else {
+            setTxs([])
+            setIsLoading(false)
         }
     }
     load()
-  }, [address, getRecentTransactions, getBusinessInfo, getSTXPrice])
+  }, [hasWallet, effectiveAddress, getRecentTransactions, getBusinessInfo, getSTXPrice, getTransactionEvents])
 
   // Filter for display
   const transactions = txs.filter(t => {
       if (activeTab === 'all') return true
-      if (activeTab === 'sent') return t.senderAddress === address
-      if (activeTab === 'received') return t.recipientAddress === address // Simplification, logic inside enrich handles roles
+      if (activeTab === 'sent') return t.senderAddress === effectiveAddress
+      if (activeTab === 'received') return t.recipientAddress === effectiveAddress
       return true
   })
 
   if (!isMounted) return null
+
+  // Show not connected state
+  if (!hasWallet) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Transaction History</h1>
+          <p className="text-muted-foreground mt-1">A complete record of all your Bitcoin & STX transfers.</p>
+        </div>
+        <Card className="border-none shadow-sm">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="p-4 rounded-full bg-muted mb-4">
+              <Wallet className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-semibold text-lg mb-2">No Wallet Connected</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Connect your Stacks wallet to view your transaction history.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <motion.div 
@@ -173,9 +273,9 @@ export function HistoryClient({ initialTransactions = [] }: { initialTransaction
                     <div className="flex flex-col items-end md:items-start">
                       <span className={cn(
                         "font-mono font-bold text-[10px] md:text-sm",
-                        tx.senderAddress === address ? "" : "text-green-600"
+                        tx.senderAddress === connectedAddress ? "" : "text-green-600"
                       )}>
-                        {tx.senderAddress === address ? '-' : '+'}{tx.amount}
+                        {tx.senderAddress === connectedAddress ? '-' : '+'}{tx.amount}
                       </span>
                       {tx.amountUSD && (
                         <span className="block text-[8px] md:text-[10px] text-muted-foreground font-medium">

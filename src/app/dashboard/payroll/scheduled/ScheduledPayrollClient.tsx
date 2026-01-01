@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useStacks } from "@/hooks/useStacks"
 import { useNotification } from "@/components/NotificationProvider"
 import { Loader2 } from "lucide-react"
-import { getPayrollSchedules, updateScheduleStatus, recordPayrollRun, checkDueSchedules, deletePayrollSchedule } from "@/app/actions/payroll"
+import { getPayrollSchedules, updateScheduleStatus, recordPayrollRun, checkDueSchedules, deletePayrollSchedule, notifyPaymentSent } from "@/app/actions/payroll"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { CreateScheduleModal } from "@/components/dashboard/CreateScheduleModal"
@@ -98,10 +98,19 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
     loadSchedules()
     
     const fetchPrice = async () => {
-      const price = await getSTXPrice()
+      let price = await getSTXPrice()
+      // Retry once if price is 0 (API may have rate limited)
+      if (price === 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        price = await getSTXPrice()
+      }
       setStxPrice(price)
     }
     fetchPrice()
+    
+    // Refresh price every 30 seconds to keep it current
+    const priceInterval = setInterval(fetchPrice, 30000)
+    return () => clearInterval(priceInterval)
   }, [loadSchedules, getSTXPrice])
 
   const handleRunPayroll = async (schedule: PayrollSchedule) => {
@@ -115,8 +124,18 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
       return
     }
 
+    // Try to get fresh price if current price is 0
+    let currentPrice = stxPrice
+    if (currentPrice <= 0) {
+      showNotification('info', 'Fetching Price', 'Getting current STX price...')
+      currentPrice = await getSTXPrice()
+      if (currentPrice > 0) {
+        setStxPrice(currentPrice)
+      }
+    }
+
     // Validate that we have a valid STX price before proceeding
-    if (stxPrice <= 0) {
+    if (currentPrice <= 0) {
       showNotification('error', 'Price Not Available', 'Unable to fetch STX price. Please wait a moment and try again.')
       return
     }
@@ -130,7 +149,7 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
       // Build recipients list for batch payroll
       const recipients = schedule.payroll_schedule_items.map(item => ({
         address: item.team_members.wallet_address,
-        amountSTX: stxPrice > 0 ? item.amount / stxPrice : 0
+        amountSTX: currentPrice > 0 ? item.amount / currentPrice : 0
       }))
 
       // Period reference for the batch
@@ -149,6 +168,17 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
           total_amount: totalAmount,
           recipient_count: recipients.length
         })
+
+        // Send email notifications to each recipient
+        for (const item of schedule.payroll_schedule_items) {
+          const amountSTX = currentPrice > 0 ? item.amount / currentPrice : 0
+          await notifyPaymentSent({
+            recipientWallet: item.team_members.wallet_address,
+            amount: amountSTX.toFixed(6),
+            currency: 'STX',
+            txId: txId
+          })
+        }
 
         showNotification('success', 'Payroll Executed', `${recipients.length} payments broadcasted!`)
         router.refresh()

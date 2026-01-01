@@ -17,6 +17,7 @@ import { useMobileWallet } from "@/hooks/useMobileWallet";
 import { SendCryptoModal, AddTeamMemberModal } from "./ActionModals";
 import { BlockchainStats, RecentTransactionsList } from "./BusinessDashboardComponents";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -52,10 +53,33 @@ function ListSkeleton() {
 export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { initialOrgName?: string; initialRecipients?: any[] }) {
   const { user } = useAuth();
   const { isConnected, address, connect, getSTXPrice, MobileModal } = useMobileWallet();
+  const supabase = React.useMemo(() => createClient(), []);
+  
+  const [storedWalletAddress, setStoredWalletAddress] = React.useState<string | null>(null);
   const [isMounted, setIsMounted] = React.useState(false)
   const [isSendModalOpen, setIsSendModalOpen] = React.useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
   const [stxPrice, setStxPrice] = React.useState(0)
+
+  // Fetch user's stored wallet address from their profile
+  React.useEffect(() => {
+    async function fetchStoredWallet() {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('wallet_address')
+          .eq('id', user.id)
+          .single()
+        
+        setStoredWalletAddress(profile?.wallet_address || null)
+      }
+    }
+    fetchStoredWallet()
+  }, [user, supabase])
+
+  // Use connected wallet address - either stored or currently connected
+  const effectiveAddress = storedWalletAddress || (isConnected ? address : null)
+  const hasWallet = !!effectiveAddress
 
   React.useEffect(() => {
     setIsMounted(true)
@@ -87,10 +111,10 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
               {isMounted && (
                 <span className={cn(
                   "text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shrink-0",
-                  isConnected ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                  hasWallet ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                 )}>
-                  {isConnected ? <ShieldCheck className="h-2.5 w-2.5 sm:h-3 w-3" /> : <Clock className="h-2.5 w-2.5 sm:h-3 w-3" />}
-                  {isConnected ? "On-Chain Verified" : "Wallet Not Connected"}
+                  {hasWallet ? <ShieldCheck className="h-2.5 w-2.5 sm:h-3 w-3" /> : <Clock className="h-2.5 w-2.5 sm:h-3 w-3" />}
+                  {hasWallet ? "On-Chain Verified" : "Wallet Not Connected"}
                 </span>
               )}
             </div>
@@ -100,15 +124,15 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
               {!isMounted ? (
                 <div className="h-4 w-20 sm:h-5 w-24 bg-accent/50 animate-pulse rounded-lg" />
               ) : (
-                <code className="text-[10px] sm:text-xs bg-accent/50 px-1.5 sm:px-2 py-0.5 rounded-lg border border-border/50 font-mono">
-                  {address ? `${address.substring(0, 5)}...${address.substring(address.length - 4)}` : "----"}
+              <code className="text-[10px] sm:text-xs bg-accent/50 px-1.5 sm:px-2 py-0.5 rounded-lg border border-border/50 font-mono">
+                  {hasWallet && effectiveAddress ? `${effectiveAddress.substring(0, 5)}...${effectiveAddress.substring(effectiveAddress.length - 4)}` : "----"}
                 </code>
               )}
             </div>
           </div>
           {isMounted && (
             <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto flex-wrap">
-              {!isConnected && (
+              {!hasWallet && (
                 <Button onClick={connect} variant="outline" className="flex-1 md:flex-none rounded-xl border-primary text-primary text-xs sm:text-sm h-10">
                   Connect Wallet
                 </Button>
@@ -137,9 +161,9 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
         {/* Stats Grid - Wrapped in Suspense if we had a data-fetching parent, but for now we use skeletons in Client */}
         <motion.div variants={itemVariants}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {isMounted && address ? (
+            {isMounted && hasWallet && effectiveAddress ? (
                 <BlockchainStats 
-                  address={address} 
+                  address={effectiveAddress} 
                   memberCount={initialRecipients.length} 
                   pendingCount={initialRecipients.filter((r: any) => !r.wallet_address).length}
                 />
@@ -160,8 +184,8 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
           className="grid grid-cols-1 lg:grid-cols-3 gap-8"
           variants={itemVariants}
         >
-          {isMounted && address ? (
-              <RecentTransactionsList address={address} />
+          {isMounted && hasWallet && effectiveAddress ? (
+              <RecentTransactionsList address={effectiveAddress} />
           ) : (
             <Card className="lg:col-span-2 border-none shadow-sm h-64 flex items-center justify-center italic text-muted-foreground">
               Recent transactions will appear here after connection.
@@ -203,9 +227,35 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
                 <CardTitle className="text-lg">Top Performers</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="text-center py-4 text-muted-foreground text-sm italic">
-                  Complete a payroll to see data
-                </div>
+                {initialRecipients.length > 0 ? (
+                  initialRecipients
+                    .slice(0, 3)
+                    .sort((a: any, b: any) => (parseFloat(b.rate) || 0) - (parseFloat(a.rate) || 0))
+                    .map((recipient: any, i: number) => (
+                      <div key={recipient.id} className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+                          i === 0 ? "bg-amber-500/10 text-amber-500" :
+                          i === 1 ? "bg-slate-400/10 text-slate-400" :
+                          "bg-orange-700/10 text-orange-700"
+                        )}>
+                          {i + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{recipient.name}</p>
+                          <p className="text-xs text-muted-foreground">{recipient.role || 'Team Member'}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-bold text-sm">${parseFloat(recipient.rate || 0).toLocaleString()}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">per month</p>
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground text-sm italic">
+                    Add team members to see data
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

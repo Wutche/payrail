@@ -108,6 +108,7 @@ export function BlockchainStats({ address, memberCount = 0, pendingCount = 0 }: 
     { 
       title: "Total Paid (On-Chain)", 
       value: `${data.paid.toLocaleString()} STX`, 
+      subValue: data.stxPrice > 0 ? `≈ $${data.paidUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null,
       badge: "TOTAL PAYROLL", 
       badgeColor: "text-emerald-500", 
       badgeBg: "bg-emerald-500/10",
@@ -117,6 +118,7 @@ export function BlockchainStats({ address, memberCount = 0, pendingCount = 0 }: 
     { 
       title: "Active Team", 
       value: memberCount.toString(), 
+      subValue: null,
       badge: activeTeamBadge,
       badgeColor: activeTeamBadgeColor,
       badgeBg: activeTeamBadgeBg,
@@ -125,7 +127,8 @@ export function BlockchainStats({ address, memberCount = 0, pendingCount = 0 }: 
     },
     { 
       title: "Wallet Balance", 
-      value: data.balance !== null ? `${data.balance.toLocaleString()} STX` : "----", 
+      value: data.balance !== null ? `${data.balance.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} STX` : "----", 
+      subValue: data.usdBalance !== null && data.stxPrice > 0 ? `≈ $${data.usdBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null,
       badge: "AVAILABLE FUNDS",
       badgeColor: "text-emerald-500",
       badgeBg: "bg-emerald-500/10",
@@ -135,6 +138,7 @@ export function BlockchainStats({ address, memberCount = 0, pendingCount = 0 }: 
     { 
       title: "Status", 
       value: data.status, 
+      subValue: null,
       badge: "BUSINESS ROLE",
       badgeColor: "text-emerald-500",
       badgeBg: "bg-emerald-500/10",
@@ -159,6 +163,9 @@ export function BlockchainStats({ address, memberCount = 0, pendingCount = 0 }: 
             <div>
               <p className="text-sm text-muted-foreground font-medium">{stat.title}</p>
               <h3 className="text-2xl font-bold mt-1 tracking-tight">{stat.value}</h3>
+              {stat.subValue && (
+                <p className="text-sm text-primary font-semibold mt-0.5">{stat.subValue}</p>
+              )}
             </div>
           </CardContent>
         </Card>

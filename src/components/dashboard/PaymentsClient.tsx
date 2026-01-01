@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { DataTable } from "@/components/dashboard/DataTable"
+import { useAuth } from "@/hooks/useAuth"
+import { createClient } from "@/lib/supabase"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -34,7 +36,11 @@ const itemVariants = {
 import { useStacks } from "@/hooks/useStacks"
 
 export function PaymentsClient({ initialTransactions = [] }: { initialTransactions?: any[] }) {
-  const { address, getRecentTransactions, getSTXPrice, getBTCPrice } = useStacks()
+  const { user } = useAuth()
+  const { address: connectedAddress, isConnected, getRecentTransactions, getSTXPrice, getBTCPrice } = useStacks()
+  const supabase = React.useMemo(() => createClient(), [])
+  
+  const [storedWalletAddress, setStoredWalletAddress] = React.useState<string | null>(null)
   const [txs, setTxs] = React.useState<any[]>(initialTransactions)
   const [stxPrice, setStxPrice] = React.useState(0)
   const [btcPrice, setBtcPrice] = React.useState(0)
@@ -45,12 +51,32 @@ export function PaymentsClient({ initialTransactions = [] }: { initialTransactio
     setIsMounted(true)
   }, [])
 
+  // Fetch user's stored wallet address from their profile
+  React.useEffect(() => {
+    async function fetchStoredWallet() {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('wallet_address')
+          .eq('id', user.id)
+          .single()
+        
+        setStoredWalletAddress(profile?.wallet_address || null)
+      }
+    }
+    fetchStoredWallet()
+  }, [user, supabase])
+
+  // Use connected wallet address - either stored or currently connected
+  const effectiveAddress = storedWalletAddress || (isConnected ? connectedAddress : null)
+  const hasWallet = !!effectiveAddress
+
   React.useEffect(() => {
     async function load() {
-        if (address) {
+        if (hasWallet && effectiveAddress) {
             setIsLoading(true)
             const [data, sPrice, bPrice] = await Promise.all([
-                getRecentTransactions(address),
+                getRecentTransactions(effectiveAddress),
                 getSTXPrice(),
                 getBTCPrice()
             ])
@@ -58,13 +84,16 @@ export function PaymentsClient({ initialTransactions = [] }: { initialTransactio
             setStxPrice(sPrice)
             setBtcPrice(bPrice)
             setIsLoading(false)
+        } else {
+            setTxs([])
+            setIsLoading(false)
         }
     }
-    if (txs.length === 0 && address) load()
-  }, [address, getRecentTransactions, getSTXPrice, getBTCPrice, txs.length])
+    if (txs.length === 0 || hasWallet) load()
+  }, [hasWallet, effectiveAddress, getRecentTransactions, getSTXPrice, getBTCPrice])
 
   // Filter for incoming payments (received)
-  const incomingTransactions = txs.filter(tx => tx.sender_address !== address)
+  const incomingTransactions = txs.filter(tx => tx.sender_address !== effectiveAddress)
 
   const incomingPayments = incomingTransactions.map(tx => {
     const amountSTX = Number(tx.stx_received || tx.token_transfer?.amount || 0) / 1_000_000
@@ -82,6 +111,29 @@ export function PaymentsClient({ initialTransactions = [] }: { initialTransactio
   const totalRevenueSTX = incomingTransactions.reduce((acc, tx) => acc + (Number(tx.stx_received || tx.token_transfer?.amount || 0) / 1_000_000), 0)
 
   if (!isMounted) return null
+
+  // Show not connected state
+  if (!hasWallet) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Incoming Payments</h1>
+          <p className="text-muted-foreground mt-1">Detailed record of Bitcoin & STX received for your services.</p>
+        </div>
+        <Card className="border-none shadow-sm">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="p-4 rounded-full bg-muted mb-4">
+              <Wallet className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-semibold text-lg mb-2">No Wallet Connected</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Connect your Stacks wallet to view your payment history.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <motion.div 
