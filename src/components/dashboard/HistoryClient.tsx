@@ -95,14 +95,20 @@ export function HistoryClient({ initialTransactions = [] }: { initialTransaction
                 const expandedTxs: EnrichedTransaction[] = [];
                 
                 for (const tx of (rawTxs || [])) {
+                    // Debug: Log all contract call function names
+                    if (tx.tx_type === 'contract_call') {
+                        console.log('[History] Contract call:', tx.tx_id?.slice(0, 10), tx.contract_call?.function_name, 'stx_sent:', tx.stx_sent);
+                    }
+                    
                     // Check if this is a batch payroll contract call
                     const isBatchPayroll = tx.tx_type === 'contract_call' && 
                         tx.contract_call?.function_name === 'execute-batch-payroll';
                     
                     if (isBatchPayroll && tx.tx_id && tx.tx_status === 'success') {
+                        console.log('[History] Found batch payroll, fetching events for:', tx.tx_id);
                         // Fetch the actual STX transfers from this batch payroll
                         const events = await getTransactionEvents(tx.tx_id);
-                        
+                        console.log('[History] Events response:', events);
                         if (events && events.stxTransfers && events.stxTransfers.length > 0) {
                             // Create a virtual transaction for each recipient
                             for (const transfer of events.stxTransfers) {

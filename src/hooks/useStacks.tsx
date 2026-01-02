@@ -344,17 +344,44 @@ export function useStacks() {
       
       const tx = await response.json()
       
+      console.log('[getTransactionEvents] Raw events:', tx.events?.map((e: any) => e.event_type));
+      
       // Extract STX transfer events from contract call
-      // These are the actual payments to recipients in batch payroll
-      const stxEvents = (tx.events || []).filter((e: any) => e.event_type === 'stx_transfer_event')
+      // The Stacks API can return these as 'stx_transfer_event' OR as 'stx_asset' type events
+      const stxTransfers: { sender: string; recipient: string; amount: number }[] = [];
+      
+      for (const event of (tx.events || [])) {
+        // Handle stx_transfer_event type
+        if (event.event_type === 'stx_transfer_event' && event.stx_transfer_event) {
+          stxTransfers.push({
+            sender: event.stx_transfer_event.sender,
+            recipient: event.stx_transfer_event.recipient,
+            amount: Number(event.stx_transfer_event.amount || 0) / 1_000_000,
+          });
+        }
+        // Handle stx_asset type (alternative format)
+        else if (event.event_type === 'stx_asset' && event.asset) {
+          stxTransfers.push({
+            sender: event.asset.sender || '',
+            recipient: event.asset.recipient || '',
+            amount: Number(event.asset.amount || 0) / 1_000_000,
+          });
+        }
+        // Handle fungible_token_asset for STX (another possible format)
+        else if (event.event_type === 'fungible_token_asset' && event.asset?.asset_id?.includes('stx')) {
+          stxTransfers.push({
+            sender: event.asset.sender || '',
+            recipient: event.asset.recipient || '',
+            amount: Number(event.asset.amount || 0) / 1_000_000,
+          });
+        }
+      }
+      
+      console.log('[getTransactionEvents] Parsed transfers:', stxTransfers);
       
       return {
         tx,
-        stxTransfers: stxEvents.map((e: any) => ({
-          sender: e.stx_transfer_event?.sender,
-          recipient: e.stx_transfer_event?.recipient,
-          amount: Number(e.stx_transfer_event?.amount || 0) / 1_000_000, // Convert uSTX to STX
-        }))
+        stxTransfers
       }
     } catch (e) {
       console.error('Error fetching transaction events:', e)

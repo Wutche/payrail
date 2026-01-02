@@ -144,8 +144,14 @@ export function enrichTransaction(
   // For now, let's stick to the Transfer recipient or the Contract address.
   
   // Try to find recipient name in members
-  const member = members.find(m => m.wallet_address === recipientAddress)
-  const recipientName = member ? member.name : (isSent ? truncateAddress(recipientAddress) : orgName)
+  // For batch payroll expanded rows, use the _batchRecipientName if set
+  let recipientName: string;
+  if (tx._batchRecipientName) {
+    recipientName = tx._batchRecipientName;
+  } else {
+    const member = members.find(m => m.wallet_address === recipientAddress)
+    recipientName = member ? member.name : (isSent ? truncateAddress(recipientAddress) : orgName)
+  }
   
   const senderName = isSent ? orgName : (members.find(m => m.wallet_address === tx.sender_address)?.name || truncateAddress(tx.sender_address))
 
