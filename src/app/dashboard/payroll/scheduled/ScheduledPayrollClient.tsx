@@ -170,14 +170,21 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
         })
 
         // Send email notifications to each recipient
+        console.log(`[BatchPayroll] Sending emails to ${schedule.payroll_schedule_items.length} recipients`)
         for (const item of schedule.payroll_schedule_items) {
           const amountSTX = currentPrice > 0 ? item.amount / currentPrice : 0
-          await notifyPaymentSent({
-            recipientWallet: item.team_members.wallet_address,
-            amount: amountSTX.toFixed(6),
-            currency: 'STX',
-            txId: txId
-          })
+          console.log(`[BatchPayroll] Sending email to ${item.team_members.name} (${item.team_members.wallet_address})`)
+          try {
+            const result = await notifyPaymentSent({
+              recipientWallet: item.team_members.wallet_address,
+              amount: amountSTX.toFixed(6),
+              currency: 'STX',
+              txId: txId
+            })
+            console.log(`[BatchPayroll] Email result for ${item.team_members.name}:`, result)
+          } catch (emailErr) {
+            console.error(`[BatchPayroll] Email error for ${item.team_members.name}:`, emailErr)
+          }
         }
 
         showNotification('success', 'Payroll Executed', `${recipients.length} payments broadcasted!`)

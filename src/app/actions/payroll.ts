@@ -334,10 +334,15 @@ export async function notifyPaymentSent(data: {
   currency: 'STX' | 'BTC'
   txId: string
 }) {
+  console.log('[notifyPaymentSent] Starting for wallet:', data.recipientWallet)
+  
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) return { error: "Not authenticated" }
+  if (!user) {
+    console.log('[notifyPaymentSent] Not authenticated')
+    return { error: "Not authenticated" }
+  }
 
   // Check if the sender has email notifications enabled
   const { data: senderProfile } = await supabase
@@ -353,30 +358,44 @@ export async function notifyPaymentSent(data: {
   }
 
   // Get recipient info by wallet address
-  const { data: recipient } = await supabase
+  console.log('[notifyPaymentSent] Querying team_members for org:', user.id, 'wallet:', data.recipientWallet)
+  const { data: recipient, error: recipientError } = await supabase
     .from('team_members')
     .select('name, email')
     .eq('organization_id', user.id)
     .or(`wallet_address.eq.${data.recipientWallet},btc_address.eq.${data.recipientWallet}`)
     .maybeSingle()
 
+  if (recipientError) {
+    console.error('[notifyPaymentSent] Query error:', recipientError)
+    return { success: false, error: recipientError.message }
+  }
+
+  console.log('[notifyPaymentSent] Query result:', recipient)
+
   if (!recipient?.email) {
     console.log('[notifyPaymentSent] No email found for recipient:', data.recipientWallet)
-    return { success: true, emailSent: false }
+    return { success: true, emailSent: false, reason: 'no_email' }
   }
 
   const orgName = senderProfile?.organization_name || 'Your Organization'
 
   // Send email
-  await sendPaymentSentEmail({
-    name: recipient.name,
-    email: recipient.email,
-    amount: data.amount,
-    currency: data.currency,
-    txId: data.txId,
-    organizationName: orgName,
-  })
-
-  return { success: true, emailSent: true }
+  console.log('[notifyPaymentSent] Sending email to:', recipient.email)
+  try {
+    await sendPaymentSentEmail({
+      name: recipient.name,
+      email: recipient.email,
+      amount: data.amount,
+      currency: data.currency,
+      txId: data.txId,
+      organizationName: orgName,
+    })
+    console.log('[notifyPaymentSent] Email sent successfully to:', recipient.email)
+    return { success: true, emailSent: true, recipientEmail: recipient.email }
+  } catch (emailError: any) {
+    console.error('[notifyPaymentSent] Email send error:', emailError)
+    return { success: false, emailSent: false, error: emailError.message }
+  }
 }
 
