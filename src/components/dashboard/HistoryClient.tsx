@@ -97,7 +97,7 @@ export function HistoryClient({ initialTransactions = [] }: { initialTransaction
                 for (const tx of (rawTxs || [])) {
                     // Check if this is a batch payroll contract call
                     const isBatchPayroll = tx.tx_type === 'contract_call' && 
-                        tx.contract_call?.function_name === 'batch-payroll';
+                        tx.contract_call?.function_name === 'execute-batch-payroll';
                     
                     if (isBatchPayroll && tx.tx_id && tx.tx_status === 'success') {
                         // Fetch the actual STX transfers from this batch payroll
