@@ -58,6 +58,7 @@ export async function getPayrollSchedules() {
         team_members (
           id,
           name,
+          email,
           wallet_address,
           btc_address
         )
@@ -333,6 +334,9 @@ export async function notifyPaymentSent(data: {
   amount: string
   currency: 'STX' | 'BTC'
   txId: string
+  // Optional: pass email directly to skip database lookup
+  recipientEmail?: string
+  recipientName?: string
 }) {
   console.log('[notifyPaymentSent] Starting for wallet:', data.recipientWallet)
   
@@ -357,42 +361,58 @@ export async function notifyPaymentSent(data: {
     return { success: true, emailSent: false, reason: 'notifications_disabled' }
   }
 
-  // Get recipient info by wallet address
-  console.log('[notifyPaymentSent] Querying team_members for org:', user.id, 'wallet:', data.recipientWallet)
-  const { data: recipient, error: recipientError } = await supabase
-    .from('team_members')
-    .select('name, email')
-    .eq('organization_id', user.id)
-    .or(`wallet_address.eq.${data.recipientWallet},btc_address.eq.${data.recipientWallet}`)
-    .maybeSingle()
+  // Use provided email/name if available, otherwise lookup from database
+  let recipientEmail = data.recipientEmail
+  let recipientName = data.recipientName || 'Recipient'
 
-  if (recipientError) {
-    console.error('[notifyPaymentSent] Query error:', recipientError)
-    return { success: false, error: recipientError.message }
-  }
+  if (!recipientEmail) {
+    // Get recipient info by wallet address
+    // Use ilike for case-insensitive matching
+    console.log('[notifyPaymentSent] Looking up email for wallet:', data.recipientWallet)
+    const { data: recipient, error: recipientError } = await supabase
+      .from('team_members')
+      .select('name, email, wallet_address')
+      .eq('organization_id', user.id)
+      .or(`wallet_address.ilike.${data.recipientWallet},btc_address.ilike.${data.recipientWallet}`)
+      .maybeSingle()
 
-  console.log('[notifyPaymentSent] Query result:', recipient)
+    if (recipientError) {
+      console.error('[notifyPaymentSent] Query error:', recipientError)
+      return { success: false, error: recipientError.message }
+    }
 
-  if (!recipient?.email) {
-    console.log('[notifyPaymentSent] No email found for recipient:', data.recipientWallet)
-    return { success: true, emailSent: false, reason: 'no_email' }
+    console.log('[notifyPaymentSent] Query result:', recipient)
+
+    if (!recipient?.email) {
+      console.log('[notifyPaymentSent] No email found for recipient:', data.recipientWallet)
+      return { success: true, emailSent: false, reason: 'no_email' }
+    }
+
+    recipientEmail = recipient.email
+    recipientName = recipient.name || 'Recipient'
   }
 
   const orgName = senderProfile?.organization_name || 'Your Organization'
 
+  // At this point recipientEmail is guaranteed to be defined
+  if (!recipientEmail) {
+    console.log('[notifyPaymentSent] No recipient email available')
+    return { success: true, emailSent: false, reason: 'no_email' }
+  }
+
   // Send email
-  console.log('[notifyPaymentSent] Sending email to:', recipient.email)
+  console.log('[notifyPaymentSent] Sending email to:', recipientEmail)
   try {
     await sendPaymentSentEmail({
-      name: recipient.name,
-      email: recipient.email,
+      name: recipientName,
+      email: recipientEmail,
       amount: data.amount,
       currency: data.currency,
       txId: data.txId,
       organizationName: orgName,
     })
-    console.log('[notifyPaymentSent] Email sent successfully to:', recipient.email)
-    return { success: true, emailSent: true, recipientEmail: recipient.email }
+    console.log('[notifyPaymentSent] Email sent successfully to:', recipientEmail)
+    return { success: true, emailSent: true, recipientEmail }
   } catch (emailError: any) {
     console.error('[notifyPaymentSent] Email send error:', emailError)
     return { success: false, emailSent: false, error: emailError.message }

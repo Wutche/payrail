@@ -26,6 +26,7 @@ interface ScheduleItem {
   team_members: {
     id: string
     name: string
+    email?: string
     wallet_address: string
     btc_address?: string
   }
@@ -173,17 +174,27 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
         console.log(`[BatchPayroll] Sending emails to ${schedule.payroll_schedule_items.length} recipients`)
         for (const item of schedule.payroll_schedule_items) {
           const amountSTX = currentPrice > 0 ? item.amount / currentPrice : 0
-          console.log(`[BatchPayroll] Sending email to ${item.team_members.name} (${item.team_members.wallet_address})`)
+          const teamMember = item.team_members
+          console.log(`[BatchPayroll] Sending email to ${teamMember.name} (${teamMember.email || 'no email'})`)
+          
+          if (!teamMember.email) {
+            console.log(`[BatchPayroll] Skipping ${teamMember.name} - no email address`)
+            continue
+          }
+          
           try {
             const result = await notifyPaymentSent({
-              recipientWallet: item.team_members.wallet_address,
+              recipientWallet: teamMember.wallet_address,
               amount: amountSTX.toFixed(6),
               currency: 'STX',
-              txId: txId
+              txId: txId,
+              // Pass email directly to avoid database lookup issues
+              recipientEmail: teamMember.email,
+              recipientName: teamMember.name
             })
-            console.log(`[BatchPayroll] Email result for ${item.team_members.name}:`, result)
+            console.log(`[BatchPayroll] Email result for ${teamMember.name}:`, result)
           } catch (emailErr) {
-            console.error(`[BatchPayroll] Email error for ${item.team_members.name}:`, emailErr)
+            console.error(`[BatchPayroll] Email error for ${teamMember.name}:`, emailErr)
           }
         }
 
