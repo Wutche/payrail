@@ -25,15 +25,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-[calc(100vh-64px-137px)] flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in duration-500">
-        <div className="flex flex-col items-center text-center space-y-2">
-           <Link href="/" className="self-start">
-            <Button variant="ghost" size="sm" className="mb-4 -ml-2 text-muted-foreground">
+        <div className="flex flex-col items-center text-center">
+          <Link href="/" className="self-start">
+            <Button variant="ghost" size="sm" className="mb-2 -ml-2 text-muted-foreground">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
           </Link>
-          <div className="bg-primary p-3 rounded-2xl shadow-xl shadow-primary/20">
-            <Wallet className="h-8 w-8 text-primary-foreground" />
+          <div className="mb-2">
+            <img 
+              src="/payrail-logo.svg" 
+              alt="Payrail Logo" 
+              className="h-24 w-auto object-contain mx-auto"
+            />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
           <p className="text-muted-foreground">Log in to your Payrail account</p>

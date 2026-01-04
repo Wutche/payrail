@@ -73,13 +73,15 @@ export function Sidebar() {
       )}
     >
       {/* Branding Area */}
-      <div className={cn("p-6 flex items-center gap-3", isCollapsed && "px-4")}>
-        <div className="bg-primary p-2 rounded-xl shadow-lg shadow-primary/20 shrink-0">
-          <Wallet className="h-5 w-5 text-primary-foreground" />
-        </div>
-        {!isCollapsed && (
-          <span className="text-xl font-black tracking-tight italic text-primary">Payrail</span>
-        )}
+      <div className={cn("p-6 flex items-center justify-center", isCollapsed && "px-2")}>
+        <img 
+          src="/payrail-logo.svg" 
+          alt="Payrail Logo" 
+          className={cn(
+            "w-auto transition-all duration-300",
+            isCollapsed ? "h-6" : "h-20"
+          )}
+        />
       </div>
       {/* Toggle Button */}
       <Button
