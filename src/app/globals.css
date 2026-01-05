@@ -4,8 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-primary: #FF6B00;
-  --color-primary-foreground: #FFFFFF;
+  --color-primary: #ff6b00;
+  --color-primary-foreground: #ffffff;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -39,7 +39,7 @@
   --card-foreground: #0a0a0a;
   --popover: #ffffff;
   --popover-foreground: #0a0a0a;
-  --primary: #FF6B00;
+  --primary: #ff6b00;
   --primary-foreground: #ffffff;
   --secondary: #f4f4f5;
   --secondary-foreground: #18181b;
@@ -50,7 +50,7 @@
   --destructive: #ef4444;
   --border: #e4e4e7;
   --input: #e4e4e7;
-  --ring: #FF6B00;
+  --ring: #ff6b00;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -58,12 +58,12 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: #fafafa;
   --sidebar-foreground: #18181b;
-  --sidebar-primary: #FF6B00;
+  --sidebar-primary: #ff6b00;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f4f4f5;
   --sidebar-accent-foreground: #18181b;
   --sidebar-border: #e4e4e7;
-  --sidebar-ring: #FF6B00;
+  --sidebar-ring: #ff6b00;
 }
 
 .dark {
@@ -113,10 +113,31 @@
 }
 
 @keyframes progress {
-  from { width: 100%; }
-  to { width: 0%; }
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
 }
 
 .animate-progress {
   animation: progress 5s linear forwards;
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+    opacity: 0.5;
+  }
 }

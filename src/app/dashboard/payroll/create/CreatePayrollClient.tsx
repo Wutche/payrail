@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react"
-import { Send, Wallet, AlertCircle, Loader2, DollarSign, Plus, X, Users } from "lucide-react"
+import { Send, Wallet, AlertCircle, Loader2, DollarSign, Plus, X, Users, Search, Filter, CheckSquare, Square, ChevronDown, Check } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,13 @@ import { useNotification } from "@/components/NotificationProvider"
 import { getTeamMembers } from "@/app/actions/team"
 import { notifyPaymentSent, verifyTransactionStatus } from "@/app/actions/payroll"
 import { PaymentSuccessModal } from "@/components/ui/PaymentSuccessModal"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface SelectedRecipient {
   id: string
@@ -49,6 +56,11 @@ export default function CreatePayrollPage() {
     currency: 'STX',
     txId: ''
   })
+
+  // Filtering and Selection state
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [viewFilter, setViewFilter] = React.useState<'all' | 'selected'>('all')
+  const [roleFilter, setRoleFilter] = React.useState<string>("All Roles")
 
   React.useEffect(() => {
     setIsMounted(true)
@@ -98,6 +110,50 @@ export default function CreatePayrollPage() {
       }])
     }
   }
+
+  const selectAllFiltered = (filtered: any[]) => {
+    const newSelected = [...selectedRecipients]
+    filtered.forEach(recipient => {
+      if (!newSelected.find(r => r.id === recipient.id)) {
+        let defaultAmount = ""
+        if (recipient.rate && currentPrice > 0) {
+          const usdRate = parseFloat(recipient.rate)
+          defaultAmount = (usdRate / currentPrice).toFixed(4)
+        }
+        newSelected.push({
+          id: recipient.id,
+          name: recipient.name,
+          wallet_address: recipient.wallet_address,
+          amount: defaultAmount
+        })
+      }
+    })
+    setSelectedRecipients(newSelected)
+  }
+
+  const clearSelection = () => {
+    setSelectedRecipients([])
+  }
+
+  const uniqueRoles = React.useMemo(() => {
+    const roles = new Set<string>()
+    recipients.forEach(r => {
+      if (r.role) roles.add(r.role)
+    })
+    return ["All Roles", ...Array.from(roles)]
+  }, [recipients])
+
+  const filteredRecipients = React.useMemo(() => {
+    return recipients.filter(r => {
+      const matchesSearch = r.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           r.wallet_address.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesRole = roleFilter === "All Roles" || r.role === roleFilter
+      const isSelected = !!selectedRecipients.find(sr => sr.id === r.id)
+      const matchesView = viewFilter === 'all' || isSelected
+      
+      return matchesSearch && matchesRole && matchesView
+    })
+  }, [recipients, searchQuery, roleFilter, viewFilter, selectedRecipients])
 
   const updateRecipientAmount = (id: string, amount: string) => {
     setSelectedRecipients(prev => prev.map(r => 
@@ -227,33 +283,107 @@ export default function CreatePayrollPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <Card className="border-none shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                Select Recipients
-              </CardTitle>
-              <CardDescription>Choose team members to pay and set individual amounts.</CardDescription>
+            <CardHeader className="pb-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Select Recipients
+                  </CardTitle>
+                  <CardDescription>Choose team members to pay and set individual amounts.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 text-[10px] font-bold rounded-lg border-primary/20 hover:bg-primary/5 text-primary"
+                    onClick={() => selectAllFiltered(filteredRecipients)}
+                  >
+                    <CheckSquare className="h-3 w-3 mr-1" />
+                    Select Filtered
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 text-[10px] font-bold rounded-lg text-muted-foreground hover:text-red-500"
+                    onClick={clearSelection}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Clear
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              {/* Search and Filters */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Search by name or address..."
+                      className="pl-9 rounded-xl bg-accent/30 border-none h-10"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="rounded-xl border-border/50 bg-accent/30 h-10 px-4 min-w-[140px] justify-between">
+                        <div className="flex items-center gap-2">
+                          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-xs">{roleFilter}</span>
+                        </div>
+                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-[160px] rounded-xl">
+                      {uniqueRoles.map(role => (
+                        <DropdownMenuItem 
+                          key={role} 
+                          onClick={() => setRoleFilter(role)}
+                          className="flex items-center justify-between py-2 cursor-pointer"
+                        >
+                          <span className="text-xs">{role}</span>
+                          {roleFilter === role && <Check className="h-3.5 w-3.5 text-primary" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              ) : recipients.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="font-medium">No recipients found</p>
-                  <p className="text-sm">Add team members first to make payments.</p>
+
+                <Tabs value={viewFilter} onValueChange={(val: any) => setViewFilter(val)} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 bg-accent/30 p-1 rounded-xl">
+                    <TabsTrigger value="all" className="rounded-lg text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                      All Members ({recipients.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="selected" className="rounded-lg text-xs font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+                      Selected ({selectedRecipients.length})
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : filteredRecipients.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground bg-accent/10 rounded-2xl border border-dashed border-border/50">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p className="font-semibold text-sm">No members found</p>
+                  <p className="text-xs">Adjust your search or filters.</p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                  {recipients.map((recipient) => {
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {filteredRecipients.map((recipient) => {
                     const isSelected = selectedRecipients.find(r => r.id === recipient.id)
                     return (
                       <div 
                         key={recipient.id}
-                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer hover:border-primary/30 ${
-                          isSelected ? 'border-primary bg-primary/5' : 'border-border/50 bg-accent/30'
+                        className={`group flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer hover:border-primary/30 ${
+                          isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border/20 bg-accent/20'
                         }`}
                         onClick={() => toggleRecipient(recipient)}
                       >
@@ -262,27 +392,47 @@ export default function CreatePayrollPage() {
                           onCheckedChange={() => toggleRecipient(recipient)}
                           className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                         />
+                        
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate">{recipient.name}</p>
-                          <p className="text-xs text-muted-foreground font-mono truncate">
-                            {recipient.wallet_address.substring(0, 12)}...{recipient.wallet_address.slice(-6)}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm truncate">{recipient.name}</span>
+                            {recipient.role && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-accent/50 rounded-md text-muted-foreground font-medium border border-border/30">
+                                {recipient.role}
+                              </span>
+                            )}
+                          </div>
+                          {!isSelected && (
+                            <p className="text-[10px] text-muted-foreground font-mono truncate">
+                              {recipient.wallet_address.substring(0, 8)}...{recipient.wallet_address.slice(-6)}
+                            </p>
+                          )}
                         </div>
-                        {recipient.rate && (
-                          <span className="text-xs text-muted-foreground bg-accent px-2 py-1 rounded-lg">
-                            ${recipient.rate}/mo
-                          </span>
-                        )}
-                        {isSelected && (
+
+                        {isSelected ? (
                           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex flex-col items-end mr-1 hidden sm:flex">
+                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Amount</span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] text-primary font-bold">{currency}</span>
+                              </div>
+                            </div>
                             <Input
                               type="number"
                               placeholder="0.00"
                               value={isSelected.amount}
                               onChange={(e) => updateRecipientAmount(recipient.id, e.target.value)}
-                              className="w-28 h-9 text-right rounded-lg font-mono"
+                              className="w-24 sm:w-28 h-9 text-right rounded-lg font-mono bg-background border-primary/20 focus:border-primary transition-all text-sm"
                             />
-                            <span className="text-xs text-muted-foreground font-bold">{currency}</span>
+                            <div className="sm:hidden text-[10px] font-bold text-primary">{currency}</div>
+                          </div>
+                        ) : (
+                          <div className="text-right">
+                            {recipient.rate && (
+                              <span className="text-xs font-bold text-muted-foreground">
+                                ${recipient.rate}<span className="text-[10px] opacity-50">/mo</span>
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
