@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useStacks } from "@/hooks/useStacks"
 import { useNotification } from "@/components/NotificationProvider"
 import { getTeamMembers } from "@/app/actions/team"
-import { notifyPaymentSent } from "@/app/actions/payroll"
+import { notifyPaymentSent, verifyTransactionStatus } from "@/app/actions/payroll"
 import { PaymentSuccessModal } from "@/components/ui/PaymentSuccessModal"
 
 interface SelectedRecipient {
@@ -127,27 +127,52 @@ export default function CreatePayrollPage() {
     try {
       setIsSubmitting(true)
       
+      let successCount = 0
+      let failCount = 0
+      
       // Execute payments sequentially
       for (const recipient of selectedRecipients) {
         await executePayroll(recipient.wallet_address, parseFloat(recipient.amount), async (data: any) => {
           const txId = data.txId || ""
-          // Send email notification to recipient
+          
+          // Verify transaction on-chain before sending email
+          showNotification('info', 'Verifying Transaction', `Waiting for ${recipient.name}'s payment to confirm...`)
+          
+          const verification = await verifyTransactionStatus(txId, 12, 10000) // 12 attempts, 10s each = 2 minutes
+          
+          if (!verification.success) {
+            // Transaction failed - DO NOT send success email
+            console.error(`[PayNow] Transaction FAILED for ${recipient.name}: ${verification.error}`)
+            showNotification('error', 'Transaction Failed', `Payment to ${recipient.name} failed: ${verification.error}`)
+            failCount++
+            return
+          }
+          
+          // Transaction confirmed - send email
+          console.log(`[PayNow] Transaction CONFIRMED for ${recipient.name}! Sending email...`)
           await notifyPaymentSent({
             recipientWallet: recipient.wallet_address,
             amount: recipient.amount,
             currency: 'STX',
             txId
           })
+          successCount++
         })
       }
 
-      // Show success notification
-      const totalPaid = selectedRecipients.reduce((sum, r) => sum + parseFloat(r.amount), 0)
-      showNotification('success', 'Payments Sent!', `Successfully sent ${totalPaid.toFixed(4)} STX to ${selectedRecipients.length} recipient(s)`)
+      // Show final summary
+      if (successCount > 0) {
+        const totalPaid = selectedRecipients.reduce((sum, r) => sum + parseFloat(r.amount), 0)
+        showNotification('success', 'Payments Confirmed!', `${successCount} of ${selectedRecipients.length} payments confirmed on-chain.`)
+        
+        // Clear form only if at least one succeeded
+        setSelectedRecipients([])
+        setMemo("")
+      }
       
-      // Clear form
-      setSelectedRecipients([])
-      setMemo("")
+      if (failCount > 0) {
+        showNotification('info', 'Some Payments Failed', `${failCount} payment(s) failed on-chain. Please retry.`)
+      }
       
       // Refresh wallet balance after a short delay
       setTimeout(async () => {

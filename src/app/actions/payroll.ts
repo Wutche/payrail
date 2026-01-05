@@ -102,6 +102,82 @@ export async function getPayrollScheduleById(id: string) {
   return { data }
 }
 
+// Stacks API URL (testnet or mainnet based on environment)
+const STACKS_API_URL = process.env.NEXT_PUBLIC_STACKS_NETWORK === 'mainnet' 
+  ? 'https://api.hiro.so' 
+  : 'https://api.testnet.hiro.so'
+
+/**
+ * Verify transaction status on-chain before sending notifications
+ * Polls the Stacks API until transaction is confirmed or failed
+ * @param txId - Transaction ID to verify
+ * @param maxAttempts - Maximum polling attempts (default: 30 = ~5 minutes)
+ * @param intervalMs - Polling interval in milliseconds (default: 10000 = 10 seconds)
+ * @returns { success: boolean, status: string, error?: string }
+ */
+export async function verifyTransactionStatus(
+  txId: string, 
+  maxAttempts: number = 30, 
+  intervalMs: number = 10000
+): Promise<{ success: boolean; status: string; error?: string }> {
+  console.log(`[verifyTransactionStatus] Starting verification for tx: ${txId}`)
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(`${STACKS_API_URL}/extended/v1/tx/${txId}`)
+      
+      if (!response.ok) {
+        console.log(`[verifyTransactionStatus] Attempt ${attempt}: API returned ${response.status}`)
+        // Transaction might not be indexed yet, wait and retry
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, intervalMs))
+          continue
+        }
+        return { success: false, status: 'unknown', error: 'Transaction not found' }
+      }
+      
+      const data = await response.json()
+      const txStatus = data.tx_status
+      
+      console.log(`[verifyTransactionStatus] Attempt ${attempt}: tx_status = ${txStatus}`)
+      
+      // Check for final statuses
+      if (txStatus === 'success') {
+        console.log(`[verifyTransactionStatus] Transaction confirmed successfully!`)
+        return { success: true, status: 'success' }
+      }
+      
+      if (txStatus === 'abort_by_response' || txStatus === 'abort_by_post_condition') {
+        console.log(`[verifyTransactionStatus] Transaction FAILED: ${txStatus}`)
+        const errorMessage = data.tx_result?.repr || 'Transaction failed on-chain'
+        return { success: false, status: txStatus, error: errorMessage }
+      }
+      
+      // If still pending, wait and retry
+      if (txStatus === 'pending') {
+        console.log(`[verifyTransactionStatus] Transaction still pending, waiting...`)
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, intervalMs))
+          continue
+        }
+      }
+      
+      // Unknown status
+      return { success: false, status: txStatus, error: `Unknown status: ${txStatus}` }
+      
+    } catch (err: any) {
+      console.error(`[verifyTransactionStatus] Attempt ${attempt} error:`, err)
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs))
+        continue
+      }
+      return { success: false, status: 'error', error: err.message }
+    }
+  }
+  
+  return { success: false, status: 'timeout', error: 'Transaction verification timed out' }
+}
+
 // Calculate next run date based on frequency and pay day
 function calculateNextRunDate(frequency: 'minutes' | 'hourly' | 'daily' | 'weekly' | 'monthly', payDay: number): string {
   const now = new Date()

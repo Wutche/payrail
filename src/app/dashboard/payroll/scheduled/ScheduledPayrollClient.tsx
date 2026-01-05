@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useStacks } from "@/hooks/useStacks"
 import { useNotification } from "@/components/NotificationProvider"
 import { Loader2 } from "lucide-react"
-import { getPayrollSchedules, updateScheduleStatus, recordPayrollRun, checkDueSchedules, deletePayrollSchedule, notifyPaymentSent } from "@/app/actions/payroll"
+import { getPayrollSchedules, updateScheduleStatus, recordPayrollRun, checkDueSchedules, deletePayrollSchedule, notifyPaymentSent, verifyTransactionStatus } from "@/app/actions/payroll"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { CreateScheduleModal } from "@/components/dashboard/CreateScheduleModal"
@@ -166,7 +166,35 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
         const txId = data.txId || ""
         const totalAmount = schedule.payroll_schedule_items.reduce((sum, i) => sum + i.amount, 0)
         
-        // Record the run
+        // Verify transaction on-chain before sending notifications
+        showNotification('info', 'Verifying Transaction', 'Waiting for on-chain confirmation...')
+        
+        const verification = await verifyTransactionStatus(txId, 12, 10000) // 12 attempts, 10s each = 2 minutes
+        
+        if (!verification.success) {
+          // Transaction failed on-chain - DO NOT send success emails
+          console.error(`[BatchPayroll] Transaction FAILED: ${verification.error}`)
+          showNotification('error', 'Transaction Failed', verification.error || 'The on-chain transaction failed. No payments were made.')
+          
+          // Record the failed run
+          await recordPayrollRun({
+            schedule_id: schedule.id,
+            status: 'failed',
+            tx_id: txId,
+            total_amount: totalAmount,
+            recipient_count: recipients.length
+          })
+          
+          // Reset status back to ready so they can try again
+          await updateScheduleStatus(schedule.id, 'ready')
+          loadSchedules()
+          return
+        }
+        
+        // Transaction confirmed successfully - now send emails
+        console.log(`[BatchPayroll] Transaction CONFIRMED! Sending emails...`)
+        
+        // Record the successful run
         await recordPayrollRun({
           schedule_id: schedule.id,
           status: 'success',
@@ -203,7 +231,7 @@ export default function ScheduledPayrollPage({ initialRecipients = [] }: { initi
           }
         }
 
-        showNotification('success', 'Payroll Executed', `${recipients.length} payments broadcasted!`)
+        showNotification('success', 'Payroll Confirmed!', `${recipients.length} payments confirmed on-chain.`)
         router.refresh()
         loadSchedules()
       })
