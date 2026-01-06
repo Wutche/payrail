@@ -11,6 +11,7 @@ export interface PayrollSchedule {
   name: string
   frequency: 'minutes' | 'hourly' | 'daily' | 'weekly' | 'monthly'
   pay_day: number
+  interval_minutes?: number // For 'minutes' frequency: 5, 10, 15, 20, 30, 60
   status: 'draft' | 'ready' | 'processing' | 'paid'
   next_run_at: string | null
   start_date: string | null
@@ -179,13 +180,17 @@ export async function verifyTransactionStatus(
 }
 
 // Calculate next run date based on frequency and pay day
-function calculateNextRunDate(frequency: 'minutes' | 'hourly' | 'daily' | 'weekly' | 'monthly', payDay: number): string {
+function calculateNextRunDate(
+  frequency: 'minutes' | 'hourly' | 'daily' | 'weekly' | 'monthly', 
+  payDay: number,
+  intervalMinutes: number = 5
+): string {
   const now = new Date()
   const next = new Date(now)
   
   if (frequency === 'minutes') {
-    // Run every 5 minutes (for testing)
-    next.setMinutes(now.getMinutes() + 5)
+    // Run every N minutes based on interval (default 5)
+    next.setMinutes(now.getMinutes() + intervalMinutes)
   } else if (frequency === 'hourly') {
     // Run every hour at the top of the hour
     next.setHours(now.getHours() + 1, 0, 0, 0)
@@ -216,6 +221,7 @@ export async function createPayrollSchedule(data: {
   name: string
   frequency: 'minutes' | 'hourly' | 'daily' | 'weekly' | 'monthly'
   pay_day: number
+  interval_minutes?: number // For 'minutes' frequency
   start_date?: string
   end_date?: string
   items: { team_member_id: string; amount: number }[]
@@ -227,7 +233,8 @@ export async function createPayrollSchedule(data: {
 
   // For minutes/hourly/daily frequencies, pay_day is not used, default to 0
   const sanitizedPayDay = ['minutes', 'hourly', 'daily'].includes(data.frequency) ? 0 : data.pay_day
-  const next_run_at = calculateNextRunDate(data.frequency, sanitizedPayDay)
+  const intervalMinutes = data.interval_minutes || 5
+  const next_run_at = calculateNextRunDate(data.frequency, sanitizedPayDay, intervalMinutes)
 
   // Create schedule
   const { data: schedule, error: scheduleError } = await supabase
@@ -237,6 +244,7 @@ export async function createPayrollSchedule(data: {
       name: data.name,
       frequency: data.frequency,
       pay_day: sanitizedPayDay,
+      interval_minutes: data.frequency === 'minutes' ? intervalMinutes : null,
       status: 'draft',
       next_run_at,
       start_date: data.start_date || null,

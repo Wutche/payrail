@@ -42,13 +42,24 @@ export const WalletConnect = () => {
   )
 
   // Sync wallet address to Supabase when user connects
+  // IMPORTANT: Only sync if:
+  // 1. User has NO stored wallet (first-time setup) - sync the connected wallet
+  // 2. OR User's stored wallet matches connected wallet (re-confirmation, no change needed)
+  // DO NOT sync if user already has a stored wallet but connects with a different one
   React.useEffect(() => {
     const syncWallet = async () => {
       if (user && stacksAddress && isConnected && !syncing) {
         try {
-          // Check if already synced
+          // If already synced with this wallet, skip
           if (storedWalletAddress === stacksAddress) {
-            return // Already synced
+            return // Already synced, nothing to do
+          }
+
+          // If user already has a different wallet registered, DON'T auto-overwrite it
+          // They need to explicitly choose to use a different wallet
+          if (storedWalletAddress && storedWalletAddress !== stacksAddress) {
+            console.log('Connected wallet differs from registered wallet. Not auto-syncing.')
+            return // Don't auto-sync - user has a different wallet registered
           }
 
           // Check if this wallet is already used by another user
@@ -74,13 +85,24 @@ export const WalletConnect = () => {
             .eq('id', user.id)
           
           if (error) {
-            console.error('Error syncing wallet address:', error.message)
+            // Handle duplicate key constraint error gracefully
+            if (error.code === '23505' || error.message.includes('duplicate key')) {
+              console.warn('Wallet already linked to another account')
+              setWalletBelongsToOther(true)
+            } else {
+              console.error('Error syncing wallet address:', error.message)
+            }
           } else {
             // Update local state to reflect the sync
             setStoredWalletAddress(stacksAddress)
           }
-        } catch (err) {
-          console.error('Sync error:', err)
+        } catch (err: any) {
+          // Handle any unexpected errors gracefully
+          if (err?.message?.includes('duplicate key')) {
+            setWalletBelongsToOther(true)
+          } else {
+            console.error('Sync error:', err)
+          }
         } finally {
           setSyncing(false)
         }

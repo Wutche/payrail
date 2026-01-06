@@ -54,6 +54,7 @@ const daysOfMonth = Array.from({ length: 28 }, (_, i) => ({
 export function CreateScheduleModal({ isOpen, onClose, onSuccess }: CreateScheduleModalProps) {
   const [name, setName] = React.useState("")
   const [frequency, setFrequency] = React.useState<'minutes' | 'hourly' | 'daily' | 'weekly' | 'monthly'>('monthly')
+  const [minuteInterval, setMinuteInterval] = React.useState(5) // 5, 10, 15, 20, 30, 60
   const [payDay, setPayDay] = React.useState(1)
   const [startDate, setStartDate] = React.useState("")
   const [endDate, setEndDate] = React.useState("")
@@ -86,6 +87,7 @@ export function CreateScheduleModal({ isOpen, onClose, onSuccess }: CreateSchedu
     if (!isOpen) {
       setName("")
       setFrequency('monthly')
+      setMinuteInterval(5)
       setPayDay(1)
       setStartDate("")
       setEndDate("")
@@ -134,6 +136,7 @@ export function CreateScheduleModal({ isOpen, onClose, onSuccess }: CreateSchedu
         name: name.trim(),
         frequency,
         pay_day: payDay,
+        interval_minutes: frequency === 'minutes' ? minuteInterval : undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
         items: selectedItems
@@ -215,6 +218,25 @@ export function CreateScheduleModal({ isOpen, onClose, onSuccess }: CreateSchedu
               </Button>
             </div>
           </div>
+
+          {/* Minute Interval Selector - only show for minutes frequency */}
+          {frequency === 'minutes' && (
+            <div className="space-y-2">
+              <Label>Run Every</Label>
+              <div className="flex flex-wrap gap-2">
+                {[1, 5, 10, 15, 20, 30, 60].map((mins) => (
+                  <Button
+                    key={mins}
+                    variant={minuteInterval === mins ? 'default' : 'outline'}
+                    className="flex-1 min-w-[60px] rounded-lg h-10 text-xs font-semibold"
+                    onClick={() => setMinuteInterval(mins)}
+                  >
+                    {mins} mins
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Only show Pay Day for weekly/monthly */}
           {(frequency === 'weekly' || frequency === 'monthly') && (

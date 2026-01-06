@@ -18,6 +18,8 @@ import {
 import { countries } from "@/lib/constants/countries"
 
 import { updateProfile } from "@/app/actions/auth"
+import { createClient } from "@/lib/supabase"
+import { useAuth } from "@/hooks/useAuth"
 
 export function OrganizationClient({ 
   initialOrgName,
@@ -41,21 +43,43 @@ export function OrganizationClient({
   
   const [isRegistered, setIsRegistered] = React.useState(false)
   const [hasOrg, setHasOrg] = React.useState(false)
+  const [storedWalletAddress, setStoredWalletAddress] = React.useState<string | null>(null)
+  
+  const { user } = useAuth()
+  const supabase = React.useMemo(() => createClient(), [])
+
+  // Fetch stored wallet address from profile
+  React.useEffect(() => {
+    async function fetchStoredWallet() {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('wallet_address')
+          .eq('id', user.id)
+          .single()
+        
+        setStoredWalletAddress(profile?.wallet_address || null)
+      }
+    }
+    fetchStoredWallet()
+  }, [user, supabase])
 
   React.useEffect(() => {
     setIsMounted(true)
   }, [])
 
   React.useEffect(() => {
-    if (address && getBusinessInfo) {
-      getBusinessInfo(address).then((data: any) => {
+    // Use stored wallet address for checking registration status
+    const walletToCheck = storedWalletAddress || address
+    if (walletToCheck && getBusinessInfo) {
+      getBusinessInfo(walletToCheck).then((data: any) => {
         if (data) {
           setIsRegistered(data.isRegistered)
           setHasOrg(data.hasOrg)
         }
       })
     }
-  }, [address, getBusinessInfo])
+  }, [storedWalletAddress, address, getBusinessInfo])
 
   const handleRegister = async () => {
     if (!isConnected) return
@@ -243,7 +267,11 @@ export function OrganizationClient({
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Owner Principal</span>
                     <code className="bg-background px-2 py-0.5 rounded border font-bold">
-                      {(isMounted && address) ? `${address.substring(0, 5)}...${address.substring(address.length - 4)}` : "Not Connected"}
+                      {storedWalletAddress 
+                        ? `${storedWalletAddress.substring(0, 5)}...${storedWalletAddress.substring(storedWalletAddress.length - 4)}` 
+                        : (isMounted && address) 
+                          ? `${address.substring(0, 5)}...${address.substring(address.length - 4)}` 
+                          : "Not Connected"}
                     </code>
                   </div>
                   {!isMounted ? (

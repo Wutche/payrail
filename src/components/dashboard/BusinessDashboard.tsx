@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Send, Plus, Clock, ShieldCheck } from "lucide-react";
+import { Send, Plus, Clock, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -56,6 +56,7 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
   const supabase = React.useMemo(() => createClient(), []);
   
   const [storedWalletAddress, setStoredWalletAddress] = React.useState<string | null>(null);
+  const [isWalletLoading, setIsWalletLoading] = React.useState(true);
   const [isMounted, setIsMounted] = React.useState(false)
   const [isSendModalOpen, setIsSendModalOpen] = React.useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
@@ -64,6 +65,7 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
   // Fetch user's stored wallet address from their profile
   React.useEffect(() => {
     async function fetchStoredWallet() {
+      setIsWalletLoading(true)
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -73,13 +75,22 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
         
         setStoredWalletAddress(profile?.wallet_address || null)
       }
+      setIsWalletLoading(false)
     }
     fetchStoredWallet()
   }, [user, supabase])
 
-  // Use connected wallet address - either stored or currently connected
-  const effectiveAddress = storedWalletAddress || (isConnected ? address : null)
-  const hasWallet = !!effectiveAddress
+  // ALWAYS prioritize stored wallet - only use connected wallet if no stored wallet exists
+  const effectiveAddress = storedWalletAddress || (isConnected && !isWalletLoading ? address : null)
+  const hasWallet = !!effectiveAddress && !isWalletLoading
+  
+  // Check if connected wallet mismatches stored wallet (robust comparison)
+  const walletMismatch = React.useMemo(() => {
+    if (!isConnected || !address || !storedWalletAddress) return false
+    const connectedNormalized = address.trim().toLowerCase()
+    const storedNormalized = storedWalletAddress.trim().toLowerCase()
+    return connectedNormalized !== storedNormalized
+  }, [isConnected, address, storedWalletAddress])
 
   React.useEffect(() => {
     setIsMounted(true)
@@ -125,10 +136,18 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
                 <div className="h-4 w-20 sm:h-5 w-24 bg-accent/50 animate-pulse rounded-lg" />
               ) : (
               <code className="text-[10px] sm:text-xs bg-accent/50 px-1.5 sm:px-2 py-0.5 rounded-lg border border-border/50 font-mono">
-                  {hasWallet && effectiveAddress ? `${effectiveAddress.substring(0, 5)}...${effectiveAddress.substring(effectiveAddress.length - 4)}` : "----"}
+                  {storedWalletAddress ? `${storedWalletAddress.substring(0, 5)}...${storedWalletAddress.substring(storedWalletAddress.length - 4)}` : (isConnected && address ? `${address.substring(0, 5)}...${address.slice(-4)}` : "----")}
                 </code>
               )}
             </div>
+            {walletMismatch && (
+              <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/20">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span className="text-[10px] sm:text-xs font-medium">
+                  Connected wallet differs from registered wallet. Please switch to <code className="font-mono bg-amber-500/20 px-1 rounded">{storedWalletAddress?.substring(0,5)}...{storedWalletAddress?.slice(-4)}</code> in your wallet extension.
+                </span>
+              </div>
+            )}
           </div>
           {isMounted && (
             <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto flex-wrap">
@@ -163,6 +182,7 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {isMounted && hasWallet && effectiveAddress ? (
                 <BlockchainStats 
+                  key={effectiveAddress} // Force re-mount when address changes
                   address={effectiveAddress} 
                   memberCount={initialRecipients.length} 
                   pendingCount={initialRecipients.filter((r: any) => !r.wallet_address).length}
@@ -185,7 +205,7 @@ export function BusinessDashboard({ initialOrgName, initialRecipients = [] }: { 
           variants={itemVariants}
         >
           {isMounted && hasWallet && effectiveAddress ? (
-              <RecentTransactionsList address={effectiveAddress} />
+              <RecentTransactionsList key={`txlist-${effectiveAddress}`} address={effectiveAddress} />
           ) : (
             <Card className="lg:col-span-2 border-none shadow-sm h-64 flex items-center justify-center italic text-muted-foreground">
               Recent transactions will appear here after connection.
