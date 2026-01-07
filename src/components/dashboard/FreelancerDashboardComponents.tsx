@@ -14,83 +14,73 @@ import { useStacks } from "@/hooks/useStacks";
 
 export function FreelancerEarningsStats() {
   const { user } = useAuth();
-  const { address: connectedAddress, isConnected, getSTXBalance, getRecentTransactions } = useStacks();
-  const supabase = React.useMemo(() => createClient(), []);
+  const { address: connectedAddress, isConnected, getSTXBalance, getRecentTransactions, getSTXPrice } = useStacks();
   
-  const [storedWalletAddress, setStoredWalletAddress] = React.useState<string | null>(null);
   const [balance, setBalance] = React.useState(0);
   const [lastPayment, setLastPayment] = React.useState(0);
+  const [stxPrice, setStxPrice] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  // Fetch user's stored wallet address from their profile
-  React.useEffect(() => {
-    async function fetchStoredWallet() {
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('wallet_address')
-          .eq('id', user.id)
-          .single();
-        
-        setStoredWalletAddress(profile?.wallet_address || null);
-      }
-    }
-    fetchStoredWallet();
-  }, [user, supabase]);
-
-  // Check if the connected wallet matches the user's stored wallet
-  // For new users, storedWalletAddress is null - we still show as connected
-  const isUserWalletConnected = isConnected && connectedAddress && (
-    !storedWalletAddress || // New user, no stored wallet yet
-    connectedAddress === storedWalletAddress // Returning user, addresses match
-  );
+  // For freelancers, use the connected wallet directly - they can use any wallet
+  const effectiveAddress = isConnected ? connectedAddress : null;
+  const hasWallet = !!effectiveAddress;
 
   React.useEffect(() => {
     async function load() {
-      // Only load data if connected wallet matches user's stored wallet
-      if (isUserWalletConnected && connectedAddress) {
+      // Always fetch price
+      const price = await getSTXPrice();
+      setStxPrice(price);
+      
+      if (hasWallet && effectiveAddress) {
         setIsLoading(true);
         const [stxBal, txs] = await Promise.all([
-          getSTXBalance(connectedAddress),
-          getRecentTransactions(connectedAddress)
+          getSTXBalance(effectiveAddress),
+          getRecentTransactions(effectiveAddress)
         ]);
         setBalance(stxBal);
         
         // Find last received payment
-        const lastReceived = txs?.find((tx: any) => tx.sender_address !== connectedAddress);
+        const lastReceived = txs?.find((tx: any) => tx.sender_address !== effectiveAddress);
         if (lastReceived) {
           const amount = Number(lastReceived.stx_received || lastReceived.token_transfer?.amount || 0) / 1_000_000;
           setLastPayment(amount);
         }
         setIsLoading(false);
       } else {
-        // No wallet connected or doesn't match - reset to defaults
+        // No wallet connected - reset to defaults
         setBalance(0);
         setLastPayment(0);
         setIsLoading(false);
       }
     }
     load();
-  }, [isUserWalletConnected, connectedAddress, getSTXBalance, getRecentTransactions]);
+  }, [hasWallet, effectiveAddress, getSTXBalance, getRecentTransactions, getSTXPrice]);
+
+  // Calculate USD values
+  const balanceUsd = balance * stxPrice;
+  const lastPaymentUsd = lastPayment * stxPrice;
 
   const stats = [
     { 
       title: "Current Balance", 
-      value: isUserWalletConnected ? `${balance.toLocaleString()} STX` : "0 STX", 
+      value: hasWallet ? `${balance.toLocaleString(undefined, { maximumFractionDigits: 3 })} STX` : "0 STX",
+      subValue: hasWallet && stxPrice > 0 ? `≈ $${balanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null,
       icon: Wallet, 
-      color: isUserWalletConnected ? "text-green-600 bg-green-100" : "text-muted-foreground bg-muted" 
+      color: hasWallet ? "text-green-600 bg-green-100" : "text-muted-foreground bg-muted" 
     },
     { 
       title: "Last Payment", 
-      value: isUserWalletConnected ? `${lastPayment.toLocaleString()} STX` : "0 STX", 
+      value: hasWallet ? `${lastPayment.toLocaleString()} STX` : "0 STX",
+      subValue: hasWallet && stxPrice > 0 && lastPayment > 0 ? `≈ $${lastPaymentUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null,
       icon: ArrowDownLeft, 
-      color: isUserWalletConnected ? "text-blue-600 bg-blue-100" : "text-muted-foreground bg-muted" 
+      color: hasWallet ? "text-blue-600 bg-blue-100" : "text-muted-foreground bg-muted" 
     },
     { 
       title: "Status", 
-      value: isUserWalletConnected ? "Active" : "Not Connected", 
+      value: hasWallet ? "Active" : "Not Connected",
+      subValue: null,
       icon: Clock, 
-      color: isUserWalletConnected ? "text-orange-600 bg-orange-100" : "text-muted-foreground bg-muted" 
+      color: hasWallet ? "text-orange-600 bg-orange-100" : "text-muted-foreground bg-muted" 
     },
   ];
 
@@ -106,6 +96,9 @@ export function FreelancerEarningsStats() {
               <div>
                 <p className="text-sm text-muted-foreground font-medium">{stat.title}</p>
                 <h3 className="text-2xl font-bold mt-0.5 tracking-tight">{stat.value}</h3>
+                {stat.subValue && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{stat.subValue}</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -117,39 +110,18 @@ export function FreelancerEarningsStats() {
 
 // Sub-component for Recent Earnings List
 export function RecentEarningsList() {
-  const { user } = useAuth();
   const { address: connectedAddress, isConnected, getRecentTransactions } = useStacks();
   const supabase = React.useMemo(() => createClient(), []);
   
-  const [storedWalletAddress, setStoredWalletAddress] = React.useState<string | null>(null);
   const [txs, setTxs] = React.useState<any[]>([]);
   const [senderNames, setSenderNames] = React.useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = React.useState(1);
   const [isLoading, setIsLoading] = React.useState(true);
   const itemsPerPage = 5;
 
-  // Fetch user's stored wallet address from their profile
-  React.useEffect(() => {
-    async function fetchStoredWallet() {
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('wallet_address')
-          .eq('id', user.id)
-          .single();
-        
-        setStoredWalletAddress(profile?.wallet_address || null);
-      }
-    }
-    fetchStoredWallet();
-  }, [user, supabase]);
-
-  // Check if the connected wallet matches the user's stored wallet
-  // For new users, storedWalletAddress is null - we still show as connected
-  const isUserWalletConnected = isConnected && connectedAddress && (
-    !storedWalletAddress || // New user, no stored wallet yet
-    connectedAddress === storedWalletAddress // Returning user, addresses match
-  );
+  // For freelancers, use connected wallet directly - they can use any wallet
+  const effectiveAddress = isConnected ? connectedAddress : null;
+  const hasWallet = !!effectiveAddress;
 
   // Fetch organization names for sender addresses
   const fetchSenderNames = React.useCallback(async (addresses: string[]) => {
@@ -172,11 +144,11 @@ export function RecentEarningsList() {
 
   React.useEffect(() => {
     async function load() {
-      if (isUserWalletConnected && connectedAddress) {
+      if (hasWallet && effectiveAddress) {
         setIsLoading(true);
-        const data = await getRecentTransactions(connectedAddress);
+        const data = await getRecentTransactions(effectiveAddress);
         // Filter for incoming payments
-        const incoming = data?.filter((tx: any) => tx.sender_address !== connectedAddress) || [];
+        const incoming = data?.filter((tx: any) => tx.sender_address !== effectiveAddress) || [];
         setTxs(incoming);
         
         // Fetch sender names for all unique sender addresses
@@ -185,14 +157,14 @@ export function RecentEarningsList() {
         
         setIsLoading(false);
       } else {
-        // No wallet connected or doesn't match - clear transactions
+        // No wallet connected - clear transactions
         setTxs([]);
         setSenderNames({});
         setIsLoading(false);
       }
     }
     load();
-  }, [isUserWalletConnected, connectedAddress, getRecentTransactions, fetchSenderNames]);
+  }, [hasWallet, effectiveAddress, getRecentTransactions, fetchSenderNames]);
 
   const allEarnings = txs.map(tx => ({
     from: senderNames[tx.sender_address] || tx.sender_address.substring(0, 10) + '...',
@@ -242,7 +214,7 @@ export function RecentEarningsList() {
               variant="ghost" 
               size="sm" 
               className="text-xs" 
-              disabled={!isUserWalletConnected || allEarnings.length === 0}
+              disabled={!hasWallet || allEarnings.length === 0}
               onClick={downloadCSV}
             >
               Download CSV
@@ -254,7 +226,7 @@ export function RecentEarningsList() {
         </div>
       </CardHeader>
       <CardContent>
-        {!isUserWalletConnected ? (
+        {!hasWallet ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="p-4 rounded-full bg-muted mb-4">
               <Wallet className="h-8 w-8 text-muted-foreground" />
