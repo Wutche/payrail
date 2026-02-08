@@ -1,135 +1,95 @@
-# 🚀 Payrail: The Decentralized Payroll Engine
-
-> **Non-custodial, high-performance payroll infrastructure for global teams, powered by Bitcoin & Stacks.**
-
-Payrail is a next-generation decentralized finance (DeFi) application designed to solve the friction of global workforce payments. By leveraging the **Stacks Blockchain**, Payrail enables businesses to execute payroll in **BTC and STX** directly from their own wallets—eliminating the need for custodial intermediaries, reducing overhead, and ensuring absolute financial sovereignty.
+# Payrail
 
 ---
 
-## 📽️ Preview & Demo
+<p align="center">
+  <img src="public/payrail-logo.svg" width="200" alt="Payrail Logo" />
+</p>
 
-Payrail combines a premium Fintech aesthetic with the security of Bitcoin.
+> _The Decentralized Payroll Engine & The Future of Non-Custodial Workforce Payments_
 
-- **Premium Web-App**: Built with Next.js 15, Framer Motion, and Tailwind CSS 4.
-- **On-Chain Settlements**: Atomic settlements via Clarity smart contracts.
-- **Decentralized Identity**: Sign-in with your Bitcoin identity (BNS/Hiro/Leather).
+<p align="center">
+  <img src="https://img.shields.io/badge/STACKS-TESTNET-5546FF?style=for-the-badge&logo=stacks&logoColor=white" />
+  <img src="https://img.shields.io/badge/BITCOIN-STX-FF6B00?style=for-the-badge&logo=bitcoin&logoColor=white" />
+  <img src="https://img.shields.io/badge/NEXT.JS-15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" />
+  <img src="https://img.shields.io/badge/SUPABASE-POSTGRES-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" />
+  <img src="https://img.shields.io/badge/BATCH-PROTOCOL-FFA500?style=for-the-badge&logo=fastapi&logoColor=white" />
+</p>
 
----
+**Problem:** Custodial Risk & Global Payment Friction. **Solution:** A Non-custodial, Atomic Payroll Protocol on Stacks.
 
-## 🎯 The Problem: Why Payrail?
-
-Traditional global payroll is broken for decentralized teams:
-
-1.  **Custodial Risk**: Middlemen hold your funds, introducing counterparty risk.
-2.  **High Fees**: International bank transfers can cost up to 5% in fees and exchange spreads.
-3.  **Slow Settlements**: Cross-border payments take days to settle.
-4.  **Lack of Transparency**: Businesses have no way to prove payments were made without bulky banking receipts.
-
-**Payrail fixes this by bringing the payroll ledger directly onto the Bitcoin Layer 2.**
+**Payrail** bridges the gap between traditional business management and the Bitcoin economy. It allows organizations to execute high-volume payroll with instant settlement and 100% financial sovereignty. By leveraging the **Batch Payment Protocol**, Payrail turns a manual, error-prone task into a single, secure, and verifiable on-chain event.
 
 ---
 
 ## 💡 Innovation: The Atomic Batching Engine
 
-The core innovation of Payrail is its **Batch Payment Protocol**, implemented in the `payrail.clar` smart contract.
+Payrail introduces a native blockchain optimization for workforce management. Unlike standard transfers that drain gas and time, Payrail bundles your entire payroll into a single **Atomic Transaction**.
 
-While standard wallet transfers require a separate transaction for every employee (high gas, manual effort), Payrail allows a business to bundle up to **20 payments** into a single atomic operation.
+- **Zero Counterparty Risk**: Funds move directly from your wallet to your team.
+- **Smart Contract Verified**: Every payment is governed by the `payrail.clar` contract.
+- **Micro-Fee Optimization**: Pay up to **20 people** for the price of one network transaction.
 
-### How it Works:
+---
 
-- **Atomic Execution**: Either _all_ employees get paid, or _none_ do. This prevents partial failures where some staff are unpaid.
-- **Gas Efficiency**: By batching, we reduce the per-transaction overhead, making it 10x more efficient for large teams.
-- **Post-Condition Security**: Payrail utilizes Stacks' unique **Post-Conditions** to ensure that the contract _cannot_ withdraw a single micro-STX more than what was authorized for the specific batch.
+## 🏗️ Technical Architecture
+
+Payrail uses a high-performance stack to ensure the dashboard remains reactive even handles complex blockchain states.
 
 ```mermaid
-graph LR
-    A[Business Wallet] --> B{Payrail Batch Engine}
-    B --> C[Employee 1: 500 STX]
-    B --> D[Employee 2: 750 STX]
-    B --> E[Employee 3: 1200 STX]
-    B --> F[Employee N: ... STX]
-    subgraph "Single Atomic Transaction"
-    B
-    end
+graph TD
+    A[Organization] -->|Batch Execution| B{Payrail Contract}
+    B -->|Verified| C[Employee 1]
+    B -->|Verified| D[Employee 2]
+    B -->|Verified| E[Employee N]
+
+    style B fill:#FF6B00,stroke:#333,stroke-width:2px,color:#fff
 ```
 
----
+### Full-Stack Breakdown
 
-## 🏗️ Tech Stack & Architecture
-
-### Frontend Layer
-
-- **Next.js 15**: Leveraging Server Components and Server Actions for high-performance data fetching.
-- **TypeScript**: Full end-to-end type safety for blockchain interactions.
-- **Tailwind CSS v4**: A cutting-edge, utility-first design system with custom HSL color tokens.
-- **Framer Motion**: Smooth, high-fidelity micro-animations for a premium dashboard feel.
-- **Lucide React**: Clean, semantic iconography.
-
-### Blockchain Layer (Stacks L2)
-
-- **Clarity Smart Contracts**: Predictable, non-Turing complete smart contracts for high-security financial logic.
-- **`@stacks/connect`**: Seamless integration with Hiro, Leather, and Xverse wallets.
-- **Post-Conditions**: Built-in protection against smart contract exploits.
-
-### Backend & Data Ops
-
-- **Supabase**: Real-time PostgreSQL database for team metadata and historical analytics.
-- **Resend/Mailjet**: Automated onboarding and payment notification engine.
-- **CoinGecko API**: Real-time BTC/STX price feeds for fiat-equivalent reporting.
+- **Frontend**: Next.js 15, Tailwind CSS v4, Framer Motion.
+- **Blockchain**: Clarity (Stacks L2), Leather/Hiro Wallet Integration.
+- **Infrastructure**: Supabase (Metadata), Resend (Notifications).
+- **Security**: Stacks Post-Conditions (Asset Protection).
 
 ---
 
-## �️ Installation & Setup
+## 🚀 Installation & Setup
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20 or higher)
-- [Leather Wallet](https://leather.io/) installed in your browser.
+- [Node.js v20+](https://nodejs.org/)
+- [Leather Wallet](https://leather.io/)
 
-### Environment Configuration
+### Quick Start
 
-Create a `.env.local` in the root directory:
+```bash
+# Clone and install
+git clone https://github.com/Wutche/payrail.git
+cd payrail && npm install
 
-```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=xxxx
-NEXT_PUBLIC_SUPABASE_ANON_KEY=xxxx
+# Configure your environment
+cp .env.example .env.local
 
-# Stacks Blockchain Configuration
-NEXT_PUBLIC_CONTRACT_ADDRESS=ST1PQHQKV...
-NEXT_PUBLIC_CONTRACT_NAME=payrail
+# Launch the engine
+npm run dev
 ```
 
-### Installation Steps
+---
 
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/Wutche/payrail.git
-    cd payrail
-    ```
-2.  **Install Dependencies**
-    ```bash
-    npm install
-    ```
-3.  **Launch the Development Server**
-    ```bash
-    npm run dev
-    ```
+## 🏆 The Payrail Advantage
+
+- **For Owners**: Absolute control. No bank freezes, no middleman fees.
+- **For Teams**: Instant liquidity. Get paid in Bitcoin-backed STX.
+- **For the Ecosystem**: Scaling financial activity on the Bitcoin layer.
 
 ---
 
-## 🏆 Why Payrail Wins: Real-World Impact
+## 📄 License
 
-Payrail isn't just a dApp; it's a **financial rail** for the future of work.
-
-- **For Founders**: Reduce time spent on manual bank transfers from 4 hours to 4 minutes.
-- **For Freelancers**: Get paid in hard money (BTC) instantly, anywhere in the world.
-- **For Regulators**: Immutable, on-chain proof of payment for every single salary disbursement.
+MIT License © 2026 Payrail Foundation.
 
 ---
 
-## � License
-
-This project is licensed under the **MIT License**. See the `LICENSE` file for details.
-
----
+_Built for the next generation of decentralized workforces._
