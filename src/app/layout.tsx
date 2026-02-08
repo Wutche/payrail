@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     siteName: "Payrail",
     images: [
       {
-        url: "/opengraph-image.png",
+        url: "https://payrail-six.vercel.app/opengraph-image.png",
         width: 1200,
         height: 630,
         alt: "Payrail - Decentralized Payroll",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Payrail | The Decentralized Payroll Engine",
     description: "Non-custodial payroll for the Bitcoin ecosystem.",
-    images: ["/opengraph-image.png"],
+    images: ["https://payrail-six.vercel.app/opengraph-image.png"],
     creator: "@payrail",
   },
   metadataBase: new URL("https://payrail-six.vercel.app"),
