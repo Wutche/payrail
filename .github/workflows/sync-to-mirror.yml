@@ -1,0 +1,20 @@
+name: Mirror to Personal Fork
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Org Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Personal Fork
+        run: |
+          git remote add personal https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository_owner }}/payrail.git
+          git push personal main --force
